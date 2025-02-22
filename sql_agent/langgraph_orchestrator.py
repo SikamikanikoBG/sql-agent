@@ -228,6 +228,33 @@ answer the user's query. Return YES or NO."""
             state["generated_query"] = "ERROR: Required database objects not found.\nAvailable objects:\n" + "\n".join(available_objects)
             return state
 
+        system_prompt = """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
+            
+Available database objects:
+{metadata}
+
+Available Stored Procedures:
+{procedures}
+
+Knowledge Base (relevant SQL examples and definitions):
+{knowledge_base}
+
+Schema Analysis:
+{schema_analysis}
+
+IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
+Use EXEC or EXECUTE to call procedures with appropriate parameters.
+
+Rules:
+1. ONLY use tables, views, and procedures that exist in the schema with EXACT case sensitivity
+2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
+3. Do not invent or assume the existence of any database objects
+4. For complex operations, ALWAYS check and use existing stored procedures first
+5. Use the knowledge base content as reference for similar queries and table relationships
+6. Return only the SQL query or procedure call, no explanations
+7. When using stored procedures, follow their exact parameter requirements
+8. Use the schema analysis to understand table relationships and semantic meanings"""
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
             
@@ -268,6 +295,21 @@ Rules:
                 for param in info['parameters']:
                     procedures_info += f"    - @{param['name']} ({param['type']}) {param['direction']}\n"
 
+        # Format user prompt with all context
+        user_prompt = f"""Intent: {state['parsed_intent']}
+
+Available Objects:
+{json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2)}
+
+Procedures:
+{procedures_info}
+
+Knowledge Base:
+{state.get("knowledge_base", "No relevant SQL examples found.")}
+
+Schema Analysis:
+{state.get("schema_analysis", "No schema analysis available.")}"""
+
         response = self.llm.invoke(prompt.format_messages(
             metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
             procedures=procedures_info,
@@ -275,11 +317,32 @@ Rules:
             schema_analysis=state.get("schema_analysis", "No schema analysis available."),
             intent=state["parsed_intent"]
         ))
+        
         state["generated_query"] = response.content
+        
+        # Store interaction details
+        state["agent_interactions"]["generate_query"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "result": response.content
+        }
+        
         return state
     
     def _validate_sql(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Validate generated SQL query."""
+        system_prompt = """Validate the generated SQL query against these rules:
+1. Must be either a SELECT statement or a stored procedure call
+2. All referenced tables must exist in the schema
+3. No destructive operations allowed (DROP, DELETE, TRUNCATE)
+4. Stored procedures must exist and be called with correct parameters"""
+
+        user_prompt = f"""Validating query:
+{state["generated_query"]}
+
+Against available objects:
+{json.dumps(state["metadata"], indent=2)}"""
+
         query = state["generated_query"].upper()
         
         # Check if it's an error message
@@ -332,6 +395,14 @@ Rules:
             
         state["is_valid"] = True
         state["error"] = None
+        
+        # Store interaction details
+        state["agent_interactions"]["validate_query"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "result": "Query validation passed" if state["is_valid"] else f"Validation failed: {state['error']}"
+        }
+        
         return state
     
     def _calculate_cost(self, prompt_tokens: int, completion_tokens: int) -> float:
