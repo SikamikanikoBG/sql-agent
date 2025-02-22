@@ -56,12 +56,13 @@ def main():
                     st.sidebar.warning("⚠️ No metadata extracted from SQL files")
                     return
                 st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
-            st.sidebar.markdown("### Knowledge Base Stats")
-            st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
-            st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
-            st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
-            if 'procedure_info' in metadata:
-                st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
+                
+                st.sidebar.markdown("### Knowledge Base Stats")
+                st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
+                st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
+                st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
+                if 'procedure_info' in metadata:
+                    st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
         else:
             st.sidebar.error("No SQL files found in knowledge base")
             st.error("No SQL files found in the knowledge base")
