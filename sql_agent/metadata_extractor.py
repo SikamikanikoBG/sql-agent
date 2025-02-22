@@ -1,6 +1,6 @@
 import re
 import json
-from typing import List, Dict
+from typing import List, Dict, Any
 
 def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
     """Extract metadata from SQL files including tables, views, and their schemas."""
