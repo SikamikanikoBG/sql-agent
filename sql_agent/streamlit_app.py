@@ -93,11 +93,8 @@ def main():
                     st.markdown("### 📑 Relevant Files")
                     if result.get("relevant_files"):
                         st.success(f"Found {len(result['relevant_files'])} relevant files:")
-                        # Display files in columns instead of expanders
-                        cols = st.columns(len(result['relevant_files']))
-                        for idx, (col, file) in enumerate(zip(cols, result["relevant_files"])):
-                            with col:
-                                st.markdown(f"**📄 {os.path.basename(file)}**")
+                        for file in result["relevant_files"]:
+                            with st.expander(f"📄 {os.path.basename(file)}"):
                                 try:
                                     with open(file, 'r') as f:
                                         st.code(f.read(), language="sql")

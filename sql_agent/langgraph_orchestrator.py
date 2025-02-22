@@ -167,7 +167,9 @@ Rules:
 5. Use the knowledge base content as reference for similar queries and table relationships
 6. Return only the SQL query or procedure call, no explanations
 7. When using stored procedures, follow their exact parameter requirements
-8. Maintain exact case sensitivity for all table names, column names, and other identifiers"""),
+8. Maintain exact case sensitivity for all table names, column names, and other identifiers
+9. For transaction/sales queries, check both sales and transaction-related tables
+10. Use appropriate JOINs to connect related tables (e.g., sales.customer_id with employees.id)"""),
             ("user", "{intent}")
         ])
         
