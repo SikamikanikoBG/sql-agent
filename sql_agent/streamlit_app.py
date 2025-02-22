@@ -149,17 +149,23 @@ def main():
                         f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"
                         f"Cost: ${usage_stats['cost']:.2f} for this query"
                     )
-                    
-                    status.update(label="✅ Processing complete!", state="complete")
 
                 # Display error details if any
                 if result.get("available_objects"):
                     with st.expander("Show available database objects"):
                         st.text(result["available_objects"])
 
-                # Display relevant files content outside the status block
+                # Display relevant files content
                 if result.get("relevant_files"):
                     st.markdown("### 📑 File Contents")
+                    relevant_files_content = []
+                    for file_path in result["relevant_files"]:
+                        try:
+                            with open(file_path, 'r') as f:
+                                relevant_files_content.append((os.path.basename(file_path), f.read()))
+                        except Exception as e:
+                            relevant_files_content.append((os.path.basename(file_path), f"Error reading file: {str(e)}"))
+                            
                     for filename, content in relevant_files_content:
                         with st.expander(f"📄 {filename}"):
                             if content.startswith("Error"):
