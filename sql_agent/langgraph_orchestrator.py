@@ -1,9 +1,12 @@
 import json
 import re
-from typing import Dict, Any, TypedDict, Annotated, Union
+from typing import Dict, Any, TypedDict, Annotated, Union, List
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
 
 class SQLAgentOrchestrator:
     def __init__(self, openai_api_key: str, server: str = None, database: str = None):
@@ -22,6 +25,8 @@ class SQLAgentOrchestrator:
             user_input: str
             metadata: Dict
             parsed_intent: Annotated[str, "The parsed user intent"]
+            relevant_files: Annotated[List[str], "Files with relevant content"]
+            knowledge_base: Annotated[str, "Accumulated knowledge from relevant files"]
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
             error: Union[str, None]  # Error message if query is invalid
@@ -44,6 +49,68 @@ class SQLAgentOrchestrator:
         # Compile the workflow
         return workflow.compile()
     
+    def __init__(self, openai_api_key: str, server: str = None, database: str = None):
+        self.llm = ChatOpenAI(
+            model="gpt-4-0125-preview",
+            openai_api_key=openai_api_key
+        )
+        self.embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        self.server = server
+        self.database = database
+        self.workflow = self._create_workflow()
+
+    def _find_relevant_files(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Find relevant SQL files using similarity search."""
+        # Create embeddings for all SQL files
+        sql_files = []
+        for root, _, files in os.walk("./sql_agent/data"):
+            for file in files:
+                if file.endswith('.sql'):
+                    with open(os.path.join(root, file), 'r') as f:
+                        content = f.read()
+                        sql_files.append((file, content))
+
+        # Create FAISS index
+        texts = [content for _, content in sql_files]
+        search_index = FAISS.from_texts(texts, self.embeddings)
+        
+        # Search for relevant files
+        results = search_index.similarity_search(
+            state["parsed_intent"],
+            k=3  # Get top 3 most relevant files
+        )
+        
+        state["relevant_files"] = [
+            os.path.join("./sql_agent/data", sql_files[i][0])
+            for i, _ in enumerate(results)
+        ]
+        return state
+
+    def _build_knowledge_base(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Build knowledge base from relevant files."""
+        knowledge = []
+        
+        for file_path in state["relevant_files"]:
+            with open(file_path, 'r') as f:
+                content = f.read()
+                
+            # Ask LLM if this content is relevant
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", "Analyze if this SQL content is relevant to the user's intent. Return YES or NO."),
+                ("user", f"Intent: {state['parsed_intent']}\nSQL Content: {content}")
+            ])
+            
+            response = self.llm.invoke(prompt.format_messages(
+                intent=state["parsed_intent"],
+                content=content
+            ))
+            
+            if "YES" in response.content.upper():
+                knowledge.append(content)
+        
+        state["knowledge_base"] = "\n\n".join(knowledge)
+        return state
+
     def _parse_user_intent(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Parse user's natural language query intent."""
         prompt = ChatPromptTemplate.from_messages([
@@ -79,13 +146,16 @@ class SQLAgentOrchestrator:
             return state
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a SQL query generator. Generate queries using ONLY the available database objects.
+            ("system", """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
             
 Available database objects:
 {metadata}
 
 Available Stored Procedures:
 {procedures}
+
+Knowledge Base (relevant SQL examples and definitions):
+{knowledge_base}
 
 IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
 Use EXEC or EXECUTE to call procedures with appropriate parameters.
@@ -95,8 +165,9 @@ Rules:
 2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
 3. Do not invent or assume the existence of any database objects
 4. For complex operations, ALWAYS check and use existing stored procedures first
-5. Return only the SQL query or procedure call, no explanations
-6. When using stored procedures, follow their exact parameter requirements"""),
+5. Use the knowledge base content as reference for similar queries and table relationships
+6. Return only the SQL query or procedure call, no explanations
+7. When using stored procedures, follow their exact parameter requirements"""),
             ("user", "{intent}")
         ])
         
