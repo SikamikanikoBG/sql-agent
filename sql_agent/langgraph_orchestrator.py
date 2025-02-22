@@ -2,7 +2,7 @@ import json
 import re
 from typing import Dict, Any, TypedDict, Annotated, Union
 from langgraph.graph import Graph, StateGraph
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 class SQLAgentOrchestrator:
@@ -48,7 +48,7 @@ class SQLAgentOrchestrator:
             ("user", "{query}")
         ])
         
-        response = self.llm(prompt.format_messages(query=state["user_input"]))
+        response = self.llm.invoke(prompt.format_messages(query=state["user_input"]))
         state["parsed_intent"] = response.content
         return state
     
@@ -91,7 +91,7 @@ Rules:
                 for param in info['parameters']:
                     procedures_info += f"    - @{param['name']} ({param['type']}) {param['direction']}\n"
 
-        response = self.llm(prompt.format_messages(
+        response = self.llm.invoke(prompt.format_messages(
             metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
             procedures=procedures_info,
             intent=state["parsed_intent"]
