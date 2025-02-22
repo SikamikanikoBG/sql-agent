@@ -422,13 +422,10 @@ Against available objects:
             "user_input": user_input,
             "metadata": metadata,
             "parsed_intent": "",
-            "relevant_files": [],
-            "knowledge_base": "",
+            "relevant_content": [],
             "generated_query": "",
             "is_valid": False,
             "error": None,
-            "schema_analysis": "",
-            "similarity_search": [],
             "agent_interactions": {}  # Store each agent's prompts and results
         }
         
@@ -439,17 +436,7 @@ Against available objects:
                 "user_prompt": "",
                 "result": ""
             },
-            "find_relevant_files": {
-                "system_prompt": "",
-                "user_prompt": "",
-                "result": ""
-            },
-            "build_knowledge_base": {
-                "system_prompt": "",
-                "user_prompt": "",
-                "result": ""
-            },
-            "analyze_schema": {
+            "find_relevant_content": {
                 "system_prompt": "",
                 "user_prompt": "",
                 "result": ""

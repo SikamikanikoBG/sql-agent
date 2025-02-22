@@ -97,11 +97,9 @@ def main():
                 st.markdown("### 🤖 SQL Agent Workflow")
                 steps = {
                     "parse_intent": "1️⃣ Parse User Intent",
-                    "find_relevant_files": "2️⃣ Find Relevant Files",
-                    "build_knowledge_base": "3️⃣ Build Knowledge Base",
-                    "analyze_schema": "4️⃣ Analyze Schema",
-                    "generate_query": "5️⃣ Generate SQL Query",
-                    "validate_query": "6️⃣ Validate Query"
+                    "find_relevant_content": "2️⃣ Find Relevant Content",
+                    "generate_query": "3️⃣ Generate SQL Query",
+                    "validate_query": "4️⃣ Validate Query"
                 }
                 
                 # Process query and show each step
