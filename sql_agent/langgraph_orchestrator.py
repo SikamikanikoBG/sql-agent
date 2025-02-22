@@ -90,20 +90,24 @@ class SQLAgentOrchestrator:
 
     def _analyze_schema(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze schema relationships and semantic meanings."""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a database schema analyst. Analyze the provided SQL content to:
+        system_prompt = """You are a database schema analyst. Analyze the provided SQL content to:
 1. Identify table relationships (foreign keys, references)
 2. Understand semantic meanings (e.g., which tables represent transactions, users, etc.)
 3. Map business concepts to database structures
 4. Identify relevant tables and columns for common query patterns
 
-Return a concise analysis focusing on relationships and meanings relevant to the user's intent."""),
-            ("user", """User Intent: {intent}
+Return a concise analysis focusing on relationships and meanings relevant to the user's intent."""
+
+        user_prompt = f"""User Intent: {state["parsed_intent"]}
 
 Available Schema:
-{knowledge_base}
+{state["knowledge_base"]}
 
-Analyze the schema and explain how it relates to the user's intent.""")
+Analyze the schema and explain how it relates to the user's intent."""
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("user", user_prompt)
         ])
         
         response = self.llm.invoke(prompt.format_messages(
@@ -112,6 +116,14 @@ Analyze the schema and explain how it relates to the user's intent.""")
         ))
         
         state["schema_analysis"] = response.content
+        
+        # Store interaction details
+        state["agent_interactions"]["analyze_schema"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "result": response.content
+        }
+        
         return state
 
     def _build_knowledge_base(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -141,13 +153,24 @@ Analyze the schema and explain how it relates to the user's intent.""")
 
     def _parse_user_intent(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Parse user's natural language query intent."""
+        system_prompt = "Extract the key elements from this database query request."
+        user_prompt = state["user_input"]
+        
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "Extract the key elements from this database query request."),
+            ("system", system_prompt),
             ("user", "{query}")
         ])
         
-        response = self.llm.invoke(prompt.format_messages(query=state["user_input"]))
+        response = self.llm.invoke(prompt.format_messages(query=user_prompt))
         state["parsed_intent"] = response.content
+        
+        # Store interaction details
+        state["agent_interactions"]["parse_intent"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "result": response.content
+        }
+        
         return state
     
     def _generate_sql_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -283,7 +306,7 @@ Rules:
         """Calculate cost based on GPT-4 Turbo pricing."""
         return (prompt_tokens * 0.01 + completion_tokens * 0.03) / 1000  # $0.01/1K prompt, $0.03/1K completion
 
-    def process_query(self, user_input: str, metadata: Dict, step_containers: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def process_query(self, user_input: str, metadata: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Process a user query through the workflow."""
         initial_state = {
             "user_input": user_input,
@@ -296,7 +319,7 @@ Rules:
             "error": None,
             "schema_analysis": "",
             "similarity_search": [],
-            "step_containers": step_containers
+            "agent_interactions": {}  # Store each agent's prompts and results
         }
         # Use callback handler to track token usage
         with get_openai_callback() as cb:

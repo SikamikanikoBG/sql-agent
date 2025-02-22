@@ -104,13 +104,18 @@ def main():
                     "validate_query": "6️⃣ Validate Query"
                 }
                 
-                # Create placeholders for each step
-                step_containers = {
-                    step: st.empty() for step in steps
-                }
+                # Process query and show each step
+                result, usage_stats = agent.process_query(user_query, metadata)
                 
-                # Process query and update UI in real-time
-                result, usage_stats = agent.process_query(user_query, metadata, step_containers)
+                # Display each agent's interaction
+                for step_name, step_data in result["agent_interactions"].items():
+                    with st.expander(f"🤖 {steps[step_name]}", expanded=True):
+                        st.markdown("**System Prompt:**")
+                        st.code(step_data["system_prompt"])
+                        st.markdown("**User Prompt:**")
+                        st.code(step_data["user_prompt"])
+                        st.markdown("**Result:**")
+                        st.code(step_data["result"])
                 
                 # Display final results
                 if result.get("similarity_search"):
