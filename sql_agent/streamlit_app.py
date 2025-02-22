@@ -105,6 +105,16 @@ def main():
                             st.sidebar.success("Files found:")
                             for file in sql_files:
                                 st.sidebar.text(f"📄 {os.path.basename(file)}")
+                            
+                            # Process files and show metadata counts
+                            metadata = extract_metadata_from_sql_files(sql_files)
+                            st.sidebar.markdown("### Knowledge Base Stats")
+                            st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
+                            st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
+                            st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
+                            if 'procedure_info' in metadata:
+                                st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
+                            
                             st.info(f"Processing {len(sql_files)} SQL files from {data_folder}...")
                             metadata = extract_metadata_from_sql_files(sql_files)
                         else:
