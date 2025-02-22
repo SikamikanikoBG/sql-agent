@@ -5,6 +5,7 @@ from typing import Dict, Any, TypedDict, Annotated, Union, List, Tuple
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
+from langchain.callbacks import get_openai_callback
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -260,19 +261,15 @@ Rules:
             "is_valid": False,
             "error": None
         }
-        # Reset token counters for this query
-        self.total_tokens = {"prompt": 0, "completion": 0}
-        self.total_cost = 0.0
-
-        result = self.workflow.invoke(initial_state)
-        
-        # Collect token usage from LLM calls
-        for response in self.llm._last_responses:
-            usage = response.usage
-            if usage:
-                self.total_tokens["prompt"] += usage.prompt_tokens
-                self.total_tokens["completion"] += usage.completion_tokens
-                self.total_cost += self._calculate_cost(usage.prompt_tokens, usage.completion_tokens)
+        # Use callback handler to track token usage
+        with get_openai_callback() as cb:
+            result = self.workflow.invoke(initial_state)
+            
+            self.total_tokens = {
+                "prompt": cb.prompt_tokens,
+                "completion": cb.completion_tokens
+            }
+            self.total_cost = cb.total_cost
 
         # Ensure parsed intent is included in the output
         if not result.get("parsed_intent"):
