@@ -64,17 +64,17 @@ def main():
                         # Process uploaded files if any
                         temp_files = []
                         if uploaded_files:
-                        for file in uploaded_files:
-                            with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp:
-                                tmp.write(file.getvalue())
-                                temp_files.append(tmp.name)
-                        
-                        st.info(f"Processing {len(temp_files)} uploaded SQL files...")
-                        metadata = extract_metadata_from_sql_files(temp_files)
-                        
-                        # Cleanup temp files
-                        for file in temp_files:
-                            os.remove(file)
+                            for file in uploaded_files:
+                                with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp:
+                                    tmp.write(file.getvalue())
+                                    temp_files.append(tmp.name)
+                            
+                            st.info(f"Processing {len(temp_files)} uploaded SQL files...")
+                            metadata = extract_metadata_from_sql_files(temp_files)
+                            
+                            # Cleanup temp files
+                            for file in temp_files:
+                                os.remove(file)
                     
                     # Process data folder if specified and exists
                     elif os.path.exists(data_folder) and os.path.isdir(data_folder):
