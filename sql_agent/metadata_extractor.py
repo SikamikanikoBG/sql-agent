@@ -18,9 +18,9 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
             views = re.findall(r'CREATE\s+VIEW\s+(\w+)\s+AS\s+(.*?);',
                              sql_content, re.DOTALL | re.IGNORECASE)
             
-            # Extract stored procedure definitions
+            # Extract stored procedure definitions with more flexible T-SQL syntax
             procedures = re.findall(
-                r'CREATE\s+PROCEDURE\s+(\w+)\s*(?:\((.*?)\))?\s*AS\s*BEGIN\s*(.*?)\s*END;?',
+                r'CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\w+)(?:\s*\((.*?)\))?\s*(?:WITH\s+[^;]+)?(?:AS|IS)\s*(?:BEGIN)?\s*(.*?)(?:END;?|GO)',
                 sql_content, re.DOTALL | re.IGNORECASE
             )
             
@@ -94,27 +94,50 @@ def _parse_parameters(params_text: str) -> List[Dict]:
         return []
         
     parameters = []
-    for param in params_text.split(','):
-        if param.strip():
-            parts = param.strip().split()
-            if len(parts) >= 2:
+    # Split on commas but not within parentheses
+    params = re.findall(r'@\w+\s+[^,]+(?:,|$)', params_text)
+    
+    for param in params:
+        param = param.strip().strip(',')
+        if param:
+            # Extract parameter components
+            param_match = re.match(
+                r'@(\w+)\s+([\w\(\)\d,\s]+)(?:\s+(OUTPUT|OUT|INPUT|IN))?(?:\s+=\s+[^,]+)?',
+                param,
+                re.IGNORECASE
+            )
+            if param_match:
+                name, type_info, direction = param_match.groups()
                 parameters.append({
-                    'name': parts[0].strip('@'),
-                    'type': parts[1],
-                    'direction': 'OUT' if 'OUT' in parts[2:] else 'IN'
+                    'name': name,
+                    'type': type_info.strip(),
+                    'direction': (direction or 'IN').upper()
                 })
     return parameters
 
 def _extract_procedure_description(body: str) -> str:
     """Extract procedure description from comments in the body."""
-    # Look for block comments
-    block_comment = re.search(r'/\*(.*?)\*/', body, re.DOTALL)
+    # Look for block comments at the start
+    block_comment = re.search(r'^\s*/\*\s*(.*?)\s*\*/', body, re.DOTALL)
     if block_comment:
-        return block_comment.group(1).strip()
+        desc = block_comment.group(1).strip()
+        # Clean up common documentation markers
+        desc = re.sub(r'[@=\-_]+\s*', ' ', desc)
+        return ' '.join(line.strip() for line in desc.split('\n'))
     
-    # Look for single line comments
-    comments = re.findall(r'--\s*(.*?)(?:\r?\n|$)', body)
+    # Look for consecutive single line comments at the start
+    lines = body.lstrip().split('\n')
+    comments = []
+    for line in lines:
+        line = line.strip()
+        if line.startswith('--'):
+            comments.append(line[2:].strip())
+        elif not line:
+            continue
+        else:
+            break
+    
     if comments:
-        return ' '.join(comments).strip()
+        return ' '.join(comments)
     
     return ""
