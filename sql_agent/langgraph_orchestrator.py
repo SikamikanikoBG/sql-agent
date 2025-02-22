@@ -1,4 +1,4 @@
-from typing import Dict, Any, TypedDict, Annotated
+from typing import Dict, Any, TypedDict, Annotated, Union
 from langgraph.graph import Graph, StateGraph
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
@@ -19,7 +19,7 @@ class SQLAgentOrchestrator:
             parsed_intent: Annotated[str, "The parsed user intent"]
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
-            error: str | None  # Error message if query is invalid
+            error: Union[str, None]  # Error message if query is invalid
 
         # Initialize the workflow with the schema
         workflow = StateGraph(AgentState)
