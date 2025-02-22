@@ -30,27 +30,26 @@ def main():
     agent = SQLAgentOrchestrator(openai_api_key=api_key)
 
     # Query input section
-    with st.expander("Enter your query", expanded=True):
-        user_query = st.text_area(
-            "Enter your natural language query:",
-            height=100
+    user_query = st.text_area(
+        "Enter your natural language query:",
+        height=100
+    )
+
+    if mode == "Local SQL Files":
+        # File uploader for SQL files
+        uploaded_files = st.file_uploader(
+            "Upload SQL files",
+            accept_multiple_files=True,
+            type=['sql']
+        )
+        
+        # Data folder path option
+        data_folder = st.text_input(
+            "Or enter path to folder with SQL files:",
+            value="./sql_agent/data"
         )
 
-        if mode == "Local SQL Files":
-            # File uploader for SQL files
-            uploaded_files = st.file_uploader(
-                "Upload SQL files",
-                accept_multiple_files=True,
-                type=['sql']
-            )
-            
-            # Data folder path option
-            data_folder = st.text_input(
-                "Or enter path to folder with SQL files:",
-                value="./sql_agent/data"
-            )
-
-        if st.button("Generate Query"):
+    if st.button("Generate Query"):
             if not user_query.strip():
                 st.warning("Please enter a valid query or prompt.")
                 return
