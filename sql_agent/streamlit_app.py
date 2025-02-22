@@ -2,8 +2,8 @@ import streamlit as st
 import os
 import tempfile
 from typing import Dict
-from .langgraph_orchestrator import SQLAgentOrchestrator
-from .metadata_extractor import extract_metadata_from_sql_files
+from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+from sql_agent.metadata_extractor import extract_metadata_from_sql_files
 
 def main():
     st.title("SQL Agent - Query Generation and Execution")
