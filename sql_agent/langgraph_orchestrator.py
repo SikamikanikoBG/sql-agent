@@ -129,4 +129,8 @@ Rules:
             "is_valid": False,
             "error": None
         }
-        return self.workflow.invoke(initial_state)
+        result = self.workflow.invoke(initial_state)
+        # Ensure parsed intent is included in the output
+        if not result.get("parsed_intent"):
+            result["parsed_intent"] = "Intent parsing failed"
+        return result

@@ -55,13 +55,15 @@ def main():
                 return
 
             try:
-                # Extract metadata based on mode
-                metadata = {}
-                
-                if mode == "Local SQL Files":
-                    # Process uploaded files if any
-                    temp_files = []
-                    if uploaded_files:
+                with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
+                    # Extract metadata based on mode
+                    metadata = {}
+                    
+                    status.update(label="📂 Processing SQL files...")
+                    if mode == "Local SQL Files":
+                        # Process uploaded files if any
+                        temp_files = []
+                        if uploaded_files:
                         for file in uploaded_files:
                             with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp:
                                 tmp.write(file.getvalue())
@@ -88,22 +90,38 @@ def main():
                         st.error(f"Data folder {data_folder} not found or not a directory")
                         return
 
-                # Display metadata found
-                if metadata:
-                    with st.expander("Extracted SQL Metadata", expanded=False):
-                        st.json(metadata)
+                    # Display metadata found
+                    if metadata:
+                        with st.expander("📊 Extracted SQL Metadata", expanded=False):
+                            st.json(metadata)
 
-                # Process the query
-                result = agent.process_query(user_query, metadata)
-
-                # Display results
-                st.subheader("Generated SQL Query:")
-                st.code(result["generated_query"], language="sql")
-
-                if result.get("is_valid", False):
-                    st.success("Query validation passed!")
-                else:
-                    st.error(f"Query validation failed: {result.get('error', 'Unknown error')}")
+                    status.update(label="🧠 Processing query through LLM agents...")
+                    with st.spinner("Parsing user intent..."):
+                        result = agent.process_query(user_query, metadata)
+                        
+                    # Create columns for workflow visualization
+                    col1, col2, col3 = st.columns(3)
+                    
+                    # Show each step's result
+                    with col1:
+                        st.markdown("### 1️⃣ Parsed Intent")
+                        st.info(result.get("parsed_intent", "No intent parsed"))
+                        
+                    with col2:
+                        st.markdown("### 2️⃣ Generated Query")
+                        if result["generated_query"].startswith('ERROR:'):
+                            st.error(result["generated_query"])
+                        else:
+                            st.code(result["generated_query"], language="sql")
+                            
+                    with col3:
+                        st.markdown("### 3️⃣ Validation")
+                        if result.get("is_valid", False):
+                            st.success("✅ Query validation passed!")
+                        else:
+                            st.error(f"❌ Validation failed:\n{result.get('error', 'Unknown error')}")
+                    
+                    status.update(label="✅ Processing complete!", state="complete")
 
             except Exception as e:
                 st.error(f"Error processing query: {str(e)}")
