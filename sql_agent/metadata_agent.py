@@ -69,31 +69,47 @@ class MetadataExtractionAgent:
                 print("Empty response from LLM")
                 return []
                 
-            # Clean the response content
+            # Clean and normalize the response content
             content = response.content.strip()
             print(f"Raw LLM response: {content}")  # Debug logging
             
-            if not content or not content.startswith('['):
-                print("Invalid response format - expected JSON array")
-                return []
+            # Handle common JSON formatting issues
+            content = content.replace('\n', ' ').replace('\r', '')
+            content = content.replace('```json', '').replace('```', '')
+            
+            # Ensure content is a valid JSON array
+            if not content.strip().startswith('['):
+                content = f"[{content}]"
                 
-            parsed = json.loads(content)
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                # Try to fix common JSON issues
+                content = content.replace("'", '"')  # Replace single quotes with double quotes
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError as e:
+                    print(f"Failed to parse JSON after cleanup: {e}")
+                    return []
+            
             if not isinstance(parsed, list):
-                print("Parsed response is not a list")
-                return []
+                parsed = [parsed]
                 
             # Validate each table object
             valid_tables = []
             for table in parsed:
                 if not isinstance(table, dict):
-                    print(f"Invalid table object: {table}")
                     continue
                     
-                if 'name' not in table:
-                    print(f"Table missing name: {table}")
-                    continue
-                    
-                valid_tables.append(table)
+                # Normalize table object
+                table_obj = {
+                    'name': table.get('name', '').strip(),
+                    'columns': table.get('columns', []),
+                    'relationships': table.get('relationships', [])
+                }
+                
+                if table_obj['name']:  # Only add if name is not empty
+                    valid_tables.append(table_obj)
                 
             return valid_tables
             
@@ -125,17 +141,43 @@ Example output:
             ("user", "SQL Content: {sql_content}")
         ])
         
-        response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
-            content = response.content.strip()
-            if not content.startswith('['):
+            response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
+            if not response or not response.content:
                 return []
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {e}")
-            return []
+                
+            content = response.content.strip()
+            content = content.replace('\n', ' ').replace('\r', '')
+            content = content.replace('```json', '').replace('```', '')
+            
+            if not content.strip().startswith('['):
+                content = f"[{content}]"
+                
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                content = content.replace("'", '"')
+                try:
+                    parsed = json.loads(content)
+                except:
+                    return []
+                    
+            if not isinstance(parsed, list):
+                parsed = [parsed]
+                
+            valid_views = []
+            for view in parsed:
+                if isinstance(view, dict) and 'name' in view:
+                    view_obj = {
+                        'name': view.get('name', '').strip(),
+                        'definition': view.get('definition', '')
+                    }
+                    if view_obj['name']:
+                        valid_views.append(view_obj)
+                        
+            return valid_views
         except Exception as e:
-            print(f"Unexpected error during view extraction: {e}")
+            print(f"Error extracting views: {e}")
             return []
 
     def extract_procedures(self, sql_content: str) -> List[Dict[str, Any]]:
@@ -166,15 +208,43 @@ Example output:
             ("user", "SQL Content: {sql_content}")
         ])
         
-        response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
-            content = response.content.strip()
-            if not content.startswith('['):
+            response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
+            if not response or not response.content:
                 return []
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {e}")
-            return []
+                
+            content = response.content.strip()
+            content = content.replace('\n', ' ').replace('\r', '')
+            content = content.replace('```json', '').replace('```', '')
+            
+            if not content.strip().startswith('['):
+                content = f"[{content}]"
+                
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                content = content.replace("'", '"')
+                try:
+                    parsed = json.loads(content)
+                except:
+                    return []
+                    
+            if not isinstance(parsed, list):
+                parsed = [parsed]
+                
+            valid_procs = []
+            for proc in parsed:
+                if isinstance(proc, dict) and 'name' in proc:
+                    proc_obj = {
+                        'name': proc.get('name', '').strip(),
+                        'parameters': proc.get('parameters', []),
+                        'description': proc.get('description', ''),
+                        'body': proc.get('body', '')
+                    }
+                    if proc_obj['name']:
+                        valid_procs.append(proc_obj)
+                        
+            return valid_procs
         except Exception as e:
-            print(f"Unexpected error during procedure extraction: {e}")
+            print(f"Error extracting procedures: {e}")
             return []
