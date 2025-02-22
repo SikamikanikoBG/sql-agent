@@ -36,11 +36,15 @@ class SQLAgentOrchestrator:
         
         # Define nodes
         workflow.add_node("parse_intent", self._parse_user_intent)
+        workflow.add_node("find_relevant_files", self._find_relevant_files)
+        workflow.add_node("build_knowledge_base", self._build_knowledge_base)
         workflow.add_node("generate_query", self._generate_sql_query)
         workflow.add_node("validate_query", self._validate_sql)
         
         # Define edges
-        workflow.add_edge("parse_intent", "generate_query")
+        workflow.add_edge("parse_intent", "find_relevant_files")
+        workflow.add_edge("find_relevant_files", "build_knowledge_base")
+        workflow.add_edge("build_knowledge_base", "generate_query")
         workflow.add_edge("generate_query", "validate_query")
         
         # Set the entry point
