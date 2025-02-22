@@ -182,6 +182,7 @@ Rules:
         response = self.llm.invoke(prompt.format_messages(
             metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
             procedures=procedures_info,
+            knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
             intent=state["parsed_intent"]
         ))
         state["generated_query"] = response.content
