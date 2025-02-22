@@ -18,9 +18,7 @@ class SQLAgentOrchestrator:
             user_input: str
             metadata: Dict
             parsed_intent: Annotated[str, "The parsed user intent"]
-            relevant_files: Annotated[List[str], "Files with relevant content"]
-            knowledge_base: Annotated[str, "Accumulated knowledge from relevant files"]
-            schema_analysis: Annotated[str, "Analysis of schema relationships and semantics"]
+            relevant_content: Annotated[List[Dict], "Relevant SQL content from vector search"]
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
             error: Union[str, None]  # Error message if query is invalid
@@ -31,17 +29,13 @@ class SQLAgentOrchestrator:
         
         # Define nodes
         workflow.add_node("parse_intent", self._parse_user_intent)
-        workflow.add_node("find_relevant_files", self._find_relevant_files)
-        workflow.add_node("build_knowledge_base", self._build_knowledge_base)
-        workflow.add_node("analyze_schema", self._analyze_schema)
+        workflow.add_node("find_relevant_content", self._find_relevant_content)
         workflow.add_node("generate_query", self._generate_sql_query)
         workflow.add_node("validate_query", self._validate_sql)
         
         # Define edges
-        workflow.add_edge("parse_intent", "find_relevant_files")
-        workflow.add_edge("find_relevant_files", "build_knowledge_base")
-        workflow.add_edge("build_knowledge_base", "analyze_schema")
-        workflow.add_edge("analyze_schema", "generate_query")
+        workflow.add_edge("parse_intent", "find_relevant_content")
+        workflow.add_edge("find_relevant_content", "generate_query")
         workflow.add_edge("generate_query", "validate_query")
         
         # Set the entry point
@@ -62,45 +56,77 @@ class SQLAgentOrchestrator:
         self.total_tokens = {"prompt": 0, "completion": 0}
         self.total_cost = 0.0
 
-    def _find_relevant_files(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """Find relevant SQL files using similarity search."""
-        system_prompt = """You are a similarity search engine for SQL files.
-Find files that contain relevant SQL code, table definitions, or stored procedures
-that could help answer the user's query."""
+    def _find_relevant_content(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Find relevant SQL content using RAG with vector similarity search."""
+        system_prompt = """You are a RAG-based SQL content retrieval system.
+Find relevant SQL code, table definitions, and stored procedures using vector similarity search."""
         
-        user_prompt = f"Finding relevant SQL files for intent: {state['parsed_intent']}"
+        user_prompt = f"Finding relevant SQL content for intent: {state['parsed_intent']}"
+
+        # Prepare content chunks for embedding
+        chunks = []
+        chunk_sources = []
         
-        # Create embeddings for all SQL files
-        sql_files = []
-        for root, _, files in os.walk("./sql_agent/data"):
-            for file in files:
-                if file.endswith('.sql'):
-                    with open(os.path.join(root, file), 'r') as f:
-                        content = f.read()
-                        sql_files.append((file, content))
+        # Process stored procedures
+        if "procedure_info" in state["metadata"]:
+            for proc_name, info in state["metadata"]["procedure_info"].items():
+                chunk = f"PROCEDURE: {proc_name}\n"
+                chunk += f"Description: {info['description']}\n"
+                chunk += "Parameters:\n"
+                for param in info.get('parameters', []):
+                    chunk += f"  @{param['name']} ({param['type']}) {param['direction']}\n"
+                chunk += f"Body:\n{info.get('body', '')}"
+                chunks.append(chunk)
+                chunk_sources.append(("procedure", proc_name))
+
+        # Process table definitions
+        if "tables" in state["metadata"]:
+            for table in state["metadata"]["tables"]:
+                chunk = f"TABLE: {table}\n"
+                # Add table structure if available
+                chunks.append(chunk)
+                chunk_sources.append(("table", table))
 
         # Create FAISS index
-        texts = [content for _, content in sql_files]
-        search_index = FAISS.from_texts(texts, self.embeddings)
+        if not chunks:  # Handle empty case
+            state["relevant_content"] = []
+            state["agent_interactions"]["find_relevant_content"] = {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "result": "No content available for vector search"
+            }
+            return state
+
+        search_index = FAISS.from_texts(chunks, self.embeddings)
         
-        # Search for relevant files
-        results = search_index.similarity_search(
+        # Perform similarity search
+        results = search_index.similarity_search_with_score(
             state["parsed_intent"],
-            k=3  # Get top 3 most relevant files
+            k=min(5, len(chunks))  # Get top 5 or all if less
         )
         
-        state["relevant_files"] = [
-            os.path.join("./sql_agent/data", sql_files[i][0])
-            for i, _ in enumerate(results)
-        ]
+        # Format results
+        relevant_content = []
+        for doc, score in results:
+            idx = chunks.index(doc.page_content)
+            source_type, source_name = chunk_sources[idx]
+            relevant_content.append({
+                "content": doc.page_content,
+                "score": float(score),
+                "type": source_type,
+                "name": source_name
+            })
+        
+        state["relevant_content"] = relevant_content
         
         # Store interaction details
-        state["agent_interactions"]["find_relevant_files"].update({
+        state["agent_interactions"]["find_relevant_content"] = {
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
-            "result": f"Found {len(state['relevant_files'])} relevant files:\n" + 
-                     "\n".join(state['relevant_files'])
-        })
+            "result": f"Found {len(relevant_content)} relevant items:\n" + 
+                     "\n".join(f"{item['type'].upper()}: {item['name']} (Score: {item['score']:.3f})"
+                              for item in relevant_content)
+        }
         
         return state
 
