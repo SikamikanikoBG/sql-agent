@@ -126,9 +126,15 @@ def main():
                         if result["generated_query"].startswith('ERROR:'):
                             error_msg = result["generated_query"].split('\n')
                             st.error(error_msg[0])  # Main error
-                            # Store additional info for later display
-                            if len(error_msg) > 1:
-                                result['available_objects'] = '\n'.join(error_msg[1:])
+                            # Format available objects nicely
+                            if metadata:
+                                result['available_objects'] = "Available database objects:\n\n"
+                                if metadata.get('tables'):
+                                    result['available_objects'] += "Tables:\n- " + "\n- ".join(metadata['tables']) + "\n\n"
+                                if metadata.get('views'):
+                                    result['available_objects'] += "Views:\n- " + "\n- ".join(metadata['views']) + "\n\n"
+                                if metadata.get('procedures'):
+                                    result['available_objects'] += "Procedures:\n- " + "\n- ".join(metadata['procedures'])
                         else:
                             st.code(result["generated_query"], language="sql")
                             

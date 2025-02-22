@@ -16,11 +16,12 @@ class MetadataExtractionAgent:
             'procedures': []
         }
         
-        # Table pattern
-        table_pattern = r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)"
+        # Table pattern - include both CREATE TABLE and ALTER TABLE
+        table_pattern = r"(?:CREATE|ALTER)\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)"
         for match in re.finditer(table_pattern, sql_content, re.IGNORECASE):
-            table_name = match.group(1).strip('[]"')
-            metadata['tables'].append(table_name)
+            table_name = match.group(1).strip('[]"').strip()
+            if table_name and table_name not in metadata['tables']:
+                metadata['tables'].append(table_name)
             
         # View pattern    
         view_pattern = r"CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)"
