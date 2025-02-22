@@ -33,12 +33,6 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Operation Mode")
     
-    # Mode selection
-    mode = st.sidebar.selectbox(
-        "Operation Mode",
-        ["Local SQL Files", "Remote SQL Server (Coming Soon)"]
-    )
-
     if not api_key:
         st.warning("Please enter your OpenAI API key in the sidebar.")
         return
@@ -46,25 +40,38 @@ def main():
     # Initialize agent
     agent = SQLAgentOrchestrator(openai_api_key=api_key)
 
+    # Fixed data folder path
+    data_folder = "./sql_agent/data"
+
+    # Scan data folder and show stats in sidebar
+    if os.path.exists(data_folder) and os.path.isdir(data_folder):
+        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                    if f.endswith('.sql')]
+        
+        st.sidebar.markdown("### Data Files Status")
+        if sql_files:
+            metadata = extract_metadata_from_sql_files(sql_files)
+            st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
+            st.sidebar.markdown("### Knowledge Base Stats")
+            st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
+            st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
+            st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
+            if 'procedure_info' in metadata:
+                st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
+        else:
+            st.sidebar.error("No SQL files found in knowledge base")
+            st.error("No SQL files found in the knowledge base")
+            return
+    else:
+        st.sidebar.error("Knowledge base folder not found")
+        st.error("Knowledge base folder not found")
+        return
+
     # Query input section
     user_query = st.text_area(
         "Enter your natural language query:",
         height=100
     )
-
-    if mode == "Local SQL Files":
-        # File uploader for SQL files
-        uploaded_files = st.file_uploader(
-            "Upload SQL files",
-            accept_multiple_files=True,
-            type=['sql']
-        )
-        
-        # Data folder path option
-        data_folder = st.text_input(
-            "Or enter path to folder with SQL files:",
-            value="./sql_agent/data"
-        )
 
     if st.button("Generate Query"):
             if not user_query.strip():
@@ -73,55 +80,12 @@ def main():
 
             try:
                 with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
-                    # Extract metadata based on mode
-                    metadata = {}
+                    status.update(label="📂 Processing query...")
                     
-                    status.update(label="📂 Processing SQL files...")
-                    if mode == "Local SQL Files":
-                        # Process uploaded files if any
-                        temp_files = []
-                        if uploaded_files:
-                            for file in uploaded_files:
-                                with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp:
-                                    tmp.write(file.getvalue())
-                                    temp_files.append(tmp.name)
-                            
-                            st.info(f"Processing {len(temp_files)} uploaded SQL files...")
-                            metadata = extract_metadata_from_sql_files(temp_files)
-                            
-                            # Cleanup temp files
-                            for file in temp_files:
-                                os.remove(file)
-                    
-                    # Process data folder if specified and exists
-                    elif os.path.exists(data_folder) and os.path.isdir(data_folder):
-                        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                                     if f.endswith('.sql')]
-                        
-                        # Update sidebar with file scanning info
-                        st.sidebar.markdown("### Data Files Status")
-                        st.sidebar.info(f"Found {len(sql_files)} SQL files in data folder")
-                        if sql_files:
-                            st.sidebar.success("Files found:")
-                            for file in sql_files:
-                                st.sidebar.text(f"📄 {os.path.basename(file)}")
-                            
-                            # Process files and show metadata counts
-                            metadata = extract_metadata_from_sql_files(sql_files)
-                            st.sidebar.markdown("### Knowledge Base Stats")
-                            st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
-                            st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
-                            st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
-                            if 'procedure_info' in metadata:
-                                st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
-                            
-                            st.info(f"Processing {len(sql_files)} SQL files from {data_folder}...")
-                            metadata = extract_metadata_from_sql_files(sql_files)
-                        else:
-                            st.warning(f"No SQL files found in {data_folder}")
-                    else:
-                        st.error(f"Data folder {data_folder} not found or not a directory")
-                        return
+                    # Use the already extracted metadata
+                    sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                               if f.endswith('.sql')]
+                    metadata = extract_metadata_from_sql_files(sql_files)
 
                     # Display metadata found
                     if metadata:
