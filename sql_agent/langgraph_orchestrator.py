@@ -20,6 +20,7 @@ class SQLAgentOrchestrator:
             parsed_intent: Annotated[str, "The parsed user intent"]
             relevant_files: Annotated[List[str], "Files with relevant content"]
             knowledge_base: Annotated[str, "Accumulated knowledge from relevant files"]
+            schema_analysis: Annotated[str, "Analysis of schema relationships and semantics"]
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
             error: Union[str, None]  # Error message if query is invalid
@@ -31,13 +32,15 @@ class SQLAgentOrchestrator:
         workflow.add_node("parse_intent", self._parse_user_intent)
         workflow.add_node("find_relevant_files", self._find_relevant_files)
         workflow.add_node("build_knowledge_base", self._build_knowledge_base)
+        workflow.add_node("analyze_schema", self._analyze_schema)
         workflow.add_node("generate_query", self._generate_sql_query)
         workflow.add_node("validate_query", self._validate_sql)
         
         # Define edges
         workflow.add_edge("parse_intent", "find_relevant_files")
         workflow.add_edge("find_relevant_files", "build_knowledge_base")
-        workflow.add_edge("build_knowledge_base", "generate_query")
+        workflow.add_edge("build_knowledge_base", "analyze_schema")
+        workflow.add_edge("analyze_schema", "generate_query")
         workflow.add_edge("generate_query", "validate_query")
         
         # Set the entry point
@@ -83,6 +86,32 @@ class SQLAgentOrchestrator:
             os.path.join("./sql_agent/data", sql_files[i][0])
             for i, _ in enumerate(results)
         ]
+        return state
+
+    def _analyze_schema(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze schema relationships and semantic meanings."""
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a database schema analyst. Analyze the provided SQL content to:
+1. Identify table relationships (foreign keys, references)
+2. Understand semantic meanings (e.g., which tables represent transactions, users, etc.)
+3. Map business concepts to database structures
+4. Identify relevant tables and columns for common query patterns
+
+Return a concise analysis focusing on relationships and meanings relevant to the user's intent."""),
+            ("user", """User Intent: {intent}
+
+Available Schema:
+{knowledge_base}
+
+Analyze the schema and explain how it relates to the user's intent.""")
+        ])
+        
+        response = self.llm.invoke(prompt.format_messages(
+            intent=state["parsed_intent"],
+            knowledge_base=state["knowledge_base"]
+        ))
+        
+        state["schema_analysis"] = response.content
         return state
 
     def _build_knowledge_base(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -156,6 +185,9 @@ Available Stored Procedures:
 Knowledge Base (relevant SQL examples and definitions):
 {knowledge_base}
 
+Schema Analysis:
+{schema_analysis}
+
 IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
 Use EXEC or EXECUTE to call procedures with appropriate parameters.
 
@@ -167,11 +199,7 @@ Rules:
 5. Use the knowledge base content as reference for similar queries and table relationships
 6. Return only the SQL query or procedure call, no explanations
 7. When using stored procedures, follow their exact parameter requirements
-8. Maintain exact case sensitivity for all table names, column names, and other identifiers
-9. For transaction/sales queries, check both sales and transaction-related tables
-10. Use appropriate JOINs to connect related tables (e.g., sales.customer_id with employees.id)
-11. When looking for transactions, consider 'sales' table as the primary source of transaction data
-12. Map common synonyms: 'transactions' -> 'sales', 'customers' -> 'employees' when appropriate"""),
+8. Use the schema analysis to understand table relationships and semantic meanings"""),
             ("user", "{intent}")
         ])
         
@@ -264,7 +292,8 @@ Rules:
             "knowledge_base": "",
             "generated_query": "",
             "is_valid": False,
-            "error": None
+            "error": None,
+            "schema_analysis": ""
         }
         # Use callback handler to track token usage
         with get_openai_callback() as cb:
