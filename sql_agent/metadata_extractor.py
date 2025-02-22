@@ -12,11 +12,13 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
             "schemas": {},
             "view_definitions": {},
             "procedure_info": {},
+            "relationships": [],
             "raw": [],
             "error": "No SQL files provided"
         }
 
     metadata = []
+    relationships = []
     
     for file in files:
         with open(file, 'r') as f:
@@ -36,14 +38,29 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
                 sql_content, re.DOTALL | re.IGNORECASE
             )
             
-            # Process tables
+            # Process tables and extract relationships
             for table_name, schema in tables:
-                metadata.append({
+                table_info = {
                     'type': 'table',
                     'name': table_name.strip(),
                     'schema': _parse_schema(schema),
                     'source_file': file
-                })
+                }
+                metadata.append(table_info)
+                
+                # Extract foreign key relationships
+                fk_matches = re.finditer(
+                    r'FOREIGN\s+KEY\s*\((\w+)\)\s*REFERENCES\s+(\w+)\s*\((\w+)\)',
+                    schema,
+                    re.IGNORECASE
+                )
+                for fk in fk_matches:
+                    relationships.append({
+                        'from_table': table_name.strip(),
+                        'from_column': fk.group(1),
+                        'to_table': fk.group(2),
+                        'to_column': fk.group(3)
+                    })
             
             # Process views
             for view_name, definition in views:
@@ -83,6 +100,7 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
                 "body": item["body"]
             } for item in metadata if item["type"] == "procedure"
         },
+        "relationships": relationships,
         "raw": metadata
     }
 
