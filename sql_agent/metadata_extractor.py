@@ -8,18 +8,16 @@ def extract_metadata_from_server(server: str, database: str,
                                trusted_connection: bool = True,
                                username: str = None, 
                                password: str = None) -> Dict[str, Any]:
-    """Extract metadata from SQL files including tables, views, and their schemas."""
-    metadata = []
+    """Extract metadata from SQL Server including tables, views, and their schemas."""
+    conn = MSSQLConnection(
+        server=server,
+        database=database,
+        username=username,
+        password=password,
+        trusted_connection=trusted_connection
+    )
     
-    for file in files:
-        with open(file, 'r') as f:
-            sql_content = f.read()
-            
-            # Extract table and view definitions
-            tables = re.findall(r'CREATE\s+TABLE\s+(\w+)\s*\((.*?)\);', 
-                              sql_content, re.DOTALL | re.IGNORECASE)
-            views = re.findall(r'CREATE\s+VIEW\s+(\w+)\s+AS\s+(.*?);',
-                             sql_content, re.DOTALL | re.IGNORECASE)
+    return conn.extract_metadata()
             
             # Process tables
             for table_name, schema in tables:
