@@ -24,9 +24,14 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
         with open(file, 'r') as f:
             sql_content = f.read()
             
-            # Extract table definitions
-            tables = re.findall(r'CREATE\s+TABLE\s+(\w+)\s*\((.*?)\);', 
-                              sql_content, re.DOTALL | re.IGNORECASE)
+            # Extract table definitions including their full schema
+            tables = re.finditer(
+                r'CREATE\s+TABLE\s+(\w+)\s*\(((?:[^()]|\([^()]*\))*)\);',
+                sql_content, 
+                re.DOTALL | re.IGNORECASE
+            )
+            # Convert iterator to list of tuples to match existing format
+            tables = [(m.group(1), m.group(2)) for m in tables]
             
             # Extract view definitions
             views = re.findall(r'CREATE\s+VIEW\s+(\w+)\s+AS\s+(.*?);',
@@ -107,15 +112,43 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
 def _parse_schema(schema_text: str) -> List[Dict]:
     """Parse column definitions from schema text."""
     columns = []
-    for column in schema_text.split(','):
-        if column.strip():
-            parts = column.strip().split()
+    current_column = []
+    paren_count = 0
+    
+    # Split on commas, but respect parentheses in type definitions
+    for char in schema_text:
+        if char == '(':
+            paren_count += 1
+        elif char == ')':
+            paren_count -= 1
+        
+        if char == ',' and paren_count == 0:
+            if current_column:
+                col_def = ''.join(current_column).strip()
+                if col_def:
+                    parts = col_def.split(None, 2)  # Split into max 3 parts
+                    if parts:
+                        columns.append({
+                            'name': parts[0],
+                            'type': parts[1] if len(parts) > 1 else 'UNKNOWN',
+                            'constraints': parts[2] if len(parts) > 2 else ''
+                        })
+            current_column = []
+        else:
+            current_column.append(char)
+    
+    # Don't forget the last column
+    if current_column:
+        col_def = ''.join(current_column).strip()
+        if col_def:
+            parts = col_def.split(None, 2)
             if parts:
                 columns.append({
                     'name': parts[0],
                     'type': parts[1] if len(parts) > 1 else 'UNKNOWN',
-                    'constraints': ' '.join(parts[2:]) if len(parts) > 2 else ''
+                    'constraints': parts[2] if len(parts) > 2 else ''
                 })
+    
     return columns
 
 def _parse_parameters(params_text: str) -> List[Dict]:
