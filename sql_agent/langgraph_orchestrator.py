@@ -292,10 +292,16 @@ Schema Analysis:
         
         state["generated_query"] = response.content
         
-        # Store interaction details
+        # Store interaction details with formatted prompts
         state["agent_interactions"]["generate_query"] = {
             "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
+            "user_prompt": prompt.format_messages(
+                metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
+                procedures=procedures_info,
+                knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
+                schema_analysis=state.get("schema_analysis", "No schema analysis available."),
+                intent=state["parsed_intent"]
+            )[1].content,  # Get the formatted user message content
             "result": response.content
         }
         
