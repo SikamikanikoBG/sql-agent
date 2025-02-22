@@ -89,6 +89,20 @@ def main():
                     with st.spinner("Parsing user intent..."):
                         result = agent.process_query(user_query, metadata)
                         
+                    # Show relevant files found
+                    st.markdown("### 📑 Relevant Files")
+                    if result.get("relevant_files"):
+                        st.success(f"Found {len(result['relevant_files'])} relevant files:")
+                        for file in result["relevant_files"]:
+                            with st.expander(f"📄 {os.path.basename(file)}"):
+                                try:
+                                    with open(file, 'r') as f:
+                                        st.code(f.read(), language="sql")
+                                except Exception as e:
+                                    st.error(f"Error reading file: {str(e)}")
+                    else:
+                        st.warning("No relevant files found")
+
                     # Create columns for workflow visualization
                     col1, col2, col3 = st.columns(3)
                     
