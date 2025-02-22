@@ -87,6 +87,10 @@ class SQLAgentOrchestrator:
         """Process a user query through the workflow."""
         initial_state = {
             "user_input": user_input,
-            "metadata": metadata
+            "metadata": metadata,
+            "parsed_intent": "",
+            "generated_query": "",
+            "is_valid": False,
+            "error": None
         }
-        return self.workflow.run(initial_state)
+        return self.workflow.invoke(initial_state)
