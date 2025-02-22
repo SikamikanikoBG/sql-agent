@@ -33,8 +33,16 @@ Example output:
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
             import json
-            return json.loads(response.content)
-        except:
+            # Clean the response content by stripping whitespace and ensuring it starts with [
+            content = response.content.strip()
+            if not content.startswith('['):
+                return []
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error during table extraction: {e}")
             return []
 
     def extract_views(self, sql_content: str) -> List[Dict[str, Any]]:
@@ -57,8 +65,15 @@ Example output:
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
             import json
-            return json.loads(response.content)
-        except:
+            content = response.content.strip()
+            if not content.startswith('['):
+                return []
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error during view extraction: {e}")
             return []
 
     def extract_procedures(self, sql_content: str) -> List[Dict[str, Any]]:
@@ -88,6 +103,13 @@ Example output:
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
             import json
-            return json.loads(response.content)
-        except:
+            content = response.content.strip()
+            if not content.startswith('['):
+                return []
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {e}")
+            return []
+        except Exception as e:
+            print(f"Unexpected error during procedure extraction: {e}")
             return []
