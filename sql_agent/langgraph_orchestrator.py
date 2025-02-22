@@ -7,7 +7,10 @@ from langchain.prompts import ChatPromptTemplate
 
 class SQLAgentOrchestrator:
     def __init__(self, openai_api_key: str, server: str = None, database: str = None):
-        self.llm = ChatOpenAI(openai_api_key=openai_api_key)
+        self.llm = ChatOpenAI(
+            model="gpt-4-0125-preview",  # gpt-4-turbo
+            openai_api_key=openai_api_key
+        )
         self.server = server
         self.database = database
         self.workflow = self._create_workflow()
