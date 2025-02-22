@@ -10,15 +10,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 
 class SQLAgentOrchestrator:
-    def __init__(self, openai_api_key: str, server: str = None, database: str = None):
-        self.llm = ChatOpenAI(
-            model="gpt-4-0125-preview",  # gpt-4-turbo
-            openai_api_key=openai_api_key
-        )
-        self.server = server
-        self.database = database
-        self.workflow = self._create_workflow()
-        
     def _create_workflow(self) -> StateGraph:
         """Create the Langgraph workflow for SQL query generation."""
         # Define the schema for our state
