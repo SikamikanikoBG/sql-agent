@@ -230,21 +230,6 @@ answer the user's query. Return YES or NO."""
 
         system_prompt = """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
             
-Available database objects:
-{metadata}
-
-Available Stored Procedures:
-{procedures}
-
-Knowledge Base (relevant SQL examples and definitions):
-{knowledge_base}
-
-Schema Analysis:
-{schema_analysis}
-
-IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
-Use EXEC or EXECUTE to call procedures with appropriate parameters.
-
 Rules:
 1. ONLY use tables, views, and procedures that exist in the schema with EXACT case sensitivity
 2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
@@ -256,33 +241,20 @@ Rules:
 8. Use the schema analysis to understand table relationships and semantic meanings"""
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
-            
-Available database objects:
+            ("system", system_prompt),
+            ("user", """Intent: {intent}
+
+Available Objects:
 {metadata}
 
 Available Stored Procedures:
 {procedures}
 
-Knowledge Base (relevant SQL examples and definitions):
+Knowledge Base:
 {knowledge_base}
 
 Schema Analysis:
-{schema_analysis}
-
-IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
-Use EXEC or EXECUTE to call procedures with appropriate parameters.
-
-Rules:
-1. ONLY use tables, views, and procedures that exist in the schema with EXACT case sensitivity
-2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
-3. Do not invent or assume the existence of any database objects
-4. For complex operations, ALWAYS check and use existing stored procedures first
-5. Use the knowledge base content as reference for similar queries and table relationships
-6. Return only the SQL query or procedure call, no explanations
-7. When using stored procedures, follow their exact parameter requirements
-8. Use the schema analysis to understand table relationships and semantic meanings"""),
-            ("user", "{intent}")
+{schema_analysis}""")
         ])
         
         # Format procedure information for the prompt
