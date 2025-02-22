@@ -254,17 +254,17 @@ answer the user's query. Return YES or NO."""
             state["generated_query"] = "ERROR: Required database objects not found.\nAvailable objects:\n" + "\n".join(available_objects)
             return state
 
-        system_prompt = """You are a SQL query generator. Generate queries using the provided knowledge base and available database objects.
+        system_prompt = """You are a SQL query generator. Generate queries using the provided database objects and relevant content from vector search.
             
 Rules:
 1. ONLY use tables, views, and procedures that exist in the schema with EXACT case sensitivity
 2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
 3. Do not invent or assume the existence of any database objects
 4. For complex operations, ALWAYS check and use existing stored procedures first
-5. Use the knowledge base content as reference for similar queries and table relationships
+5. Use the relevant content from vector search as reference for similar queries
 6. Return only the SQL query or procedure call, no explanations
 7. When using stored procedures, follow their exact parameter requirements
-8. Use the schema analysis to understand table relationships and semantic meanings"""
+8. Pay special attention to highly similar content (low vector distance scores)"""
 
         prompt = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -276,11 +276,8 @@ Available Objects:
 Available Stored Procedures:
 {procedures}
 
-Knowledge Base:
-{knowledge_base}
-
-Schema Analysis:
-{schema_analysis}""")
+Relevant Content from Vector Search (ordered by similarity):
+{relevant_content}""")
         ])
         
         # Format procedure information for the prompt
@@ -294,6 +291,11 @@ Schema Analysis:
                     procedures_info += f"    - @{param['name']} ({param['type']}) {param['direction']}\n"
 
         # Format user prompt with all context
+        relevant_content_formatted = ""
+        for item in state.get("relevant_content", []):
+            relevant_content_formatted += f"\n--- {item['type'].upper()}: {item['name']} (Similarity Score: {item['score']:.3f}) ---\n"
+            relevant_content_formatted += item['content'] + "\n"
+
         user_prompt = f"""Intent: {state['parsed_intent']}
 
 Available Objects:
@@ -302,17 +304,13 @@ Available Objects:
 Procedures:
 {procedures_info}
 
-Knowledge Base:
-{state.get("knowledge_base", "No relevant SQL examples found.")}
-
-Schema Analysis:
-{state.get("schema_analysis", "No schema analysis available.")}"""
+Relevant Content:
+{relevant_content_formatted}"""
 
         response = self.llm.invoke(prompt.format_messages(
             metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
             procedures=procedures_info,
-            knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
-            schema_analysis=state.get("schema_analysis", "No schema analysis available."),
+            relevant_content=relevant_content_formatted,
             intent=state["parsed_intent"]
         ))
         
