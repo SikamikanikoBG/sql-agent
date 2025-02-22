@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any, TypedDict, Annotated, Union
 from langgraph.graph import Graph, StateGraph
 from langchain.chat_models import ChatOpenAI
@@ -53,12 +54,21 @@ class SQLAgentOrchestrator:
     def _generate_sql_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Generate SQL query based on parsed intent and metadata."""
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "Generate a SQL query based on this intent and schema:\n{metadata}"),
+            ("system", """You are a SQL query generator. Generate queries using ONLY the tables and columns available in the schema.
+            
+Available tables and their schemas:
+{metadata}
+
+Rules:
+1. ONLY use tables and columns that exist in the schema above
+2. If the requested tables or columns don't exist, respond with 'ERROR: Required tables/columns not found in schema'
+3. Do not invent or assume the existence of any tables or columns
+4. Return only the SQL query, no explanations"""),
             ("user", "{intent}")
         ])
         
         response = self.llm(prompt.format_messages(
-            metadata=state["metadata"],
+            metadata=json.dumps(state["metadata"], indent=2),
             intent=state["parsed_intent"]
         ))
         state["generated_query"] = response.content
@@ -68,19 +78,45 @@ class SQLAgentOrchestrator:
         """Validate generated SQL query."""
         query = state["generated_query"].upper()
         
+        # Check if it's an error message from the LLM
+        if query.startswith('ERROR:'):
+            state["is_valid"] = False
+            state["error"] = query
+            return state
+            
         # Enhanced validation
         if not query.strip():
             state["is_valid"] = False
             state["error"] = "Empty query generated"
-        elif "SELECT" not in query:
+            return state
+            
+        if "SELECT" not in query:
             state["is_valid"] = False
             state["error"] = "Query must include SELECT statement"
-        elif "DROP" in query or "DELETE" in query or "TRUNCATE" in query:
+            return state
+            
+        if "DROP" in query or "DELETE" in query or "TRUNCATE" in query:
             state["is_valid"] = False
             state["error"] = "Destructive operations not allowed"
-        else:
-            state["is_valid"] = True
-            state["error"] = None
+            return state
+            
+        # Extract table names from query
+        # Simple regex to match table names after FROM and JOIN
+        import re
+        tables_in_query = set(re.findall(r'FROM\s+(\w+)|JOIN\s+(\w+)', query))
+        tables_in_query = {t[0] or t[1] for t in tables_in_query}  # Flatten tuple matches
+        
+        # Check if all tables exist in metadata
+        available_tables = set(state["metadata"].get("tables", []))
+        unknown_tables = tables_in_query - available_tables
+        
+        if unknown_tables:
+            state["is_valid"] = False
+            state["error"] = f"Query references non-existent tables: {', '.join(unknown_tables)}"
+            return state
+            
+        state["is_valid"] = True
+        state["error"] = None
         return state
     
     def process_query(self, user_input: str, metadata: Dict) -> Dict[str, Any]:
