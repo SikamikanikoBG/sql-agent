@@ -87,7 +87,7 @@ def main():
                 with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
                     status.update(label="🧠 Processing query through LLM agents...")
                     with st.spinner("Parsing user intent..."):
-                        result = agent.process_query(user_query, metadata)
+                        result, usage_stats = agent.process_query(user_query, metadata)
                         
                     # Show relevant files found
                     st.markdown("### 📑 Relevant Files")
@@ -128,6 +128,14 @@ def main():
                             st.success("✅ Query validation passed!")
                         else:
                             st.error(f"❌ Validation failed:\n{result.get('error', 'Unknown error')}")
+                    
+                    # Show usage statistics
+                    st.markdown("### 📊 Usage Statistics")
+                    tokens = usage_stats["tokens"]
+                    st.info(
+                        f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"
+                        f"Cost: ${usage_stats['cost']:.2f} for this query"
+                    )
                     
                     status.update(label="✅ Processing complete!", state="complete")
 

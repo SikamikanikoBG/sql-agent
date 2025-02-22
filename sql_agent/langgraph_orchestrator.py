@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from typing import Dict, Any, TypedDict, Annotated, Union, List
+from typing import Dict, Any, TypedDict, Annotated, Union, List, Tuple
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
@@ -54,6 +54,8 @@ class SQLAgentOrchestrator:
         self.server = server
         self.database = database
         self.workflow = self._create_workflow()
+        self.total_tokens = {"prompt": 0, "completion": 0}
+        self.total_cost = 0.0
 
     def _find_relevant_files(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Find relevant SQL files using similarity search."""
@@ -241,7 +243,11 @@ Rules:
         state["error"] = None
         return state
     
-    def process_query(self, user_input: str, metadata: Dict) -> Dict[str, Any]:
+    def _calculate_cost(self, prompt_tokens: int, completion_tokens: int) -> float:
+        """Calculate cost based on GPT-4 Turbo pricing."""
+        return (prompt_tokens * 0.01 + completion_tokens * 0.03) / 1000  # $0.01/1K prompt, $0.03/1K completion
+
+    def process_query(self, user_input: str, metadata: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Process a user query through the workflow."""
         initial_state = {
             "user_input": user_input,
@@ -253,8 +259,27 @@ Rules:
             "is_valid": False,
             "error": None
         }
+        # Reset token counters for this query
+        self.total_tokens = {"prompt": 0, "completion": 0}
+        self.total_cost = 0.0
+
         result = self.workflow.invoke(initial_state)
+        
+        # Collect token usage from LLM calls
+        for response in self.llm._last_responses:
+            usage = response.usage
+            if usage:
+                self.total_tokens["prompt"] += usage.prompt_tokens
+                self.total_tokens["completion"] += usage.completion_tokens
+                self.total_cost += self._calculate_cost(usage.prompt_tokens, usage.completion_tokens)
+
         # Ensure parsed intent is included in the output
         if not result.get("parsed_intent"):
             result["parsed_intent"] = "Intent parsing failed"
-        return result
+
+        usage_stats = {
+            "tokens": self.total_tokens,
+            "cost": self.total_cost
+        }
+        
+        return result, usage_stats
