@@ -63,6 +63,10 @@ def main():
                 st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
                 if 'procedure_info' in metadata:
                     st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
+            except Exception as e:
+                st.sidebar.error(f"Error extracting metadata: {str(e)}")
+                return
+            
         else:
             st.sidebar.error("No SQL files found in knowledge base")
             st.error("No SQL files found in the knowledge base")
