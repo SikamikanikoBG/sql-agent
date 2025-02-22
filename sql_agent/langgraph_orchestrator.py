@@ -5,14 +5,14 @@ from typing import Dict, Any, TypedDict, Annotated, Union, List
 from langgraph.graph import Graph, StateGraph
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 
 class SQLAgentOrchestrator:
     def __init__(self, openai_api_key: str, server: str = None, database: str = None):
         self.llm = ChatOpenAI(
-            model="gpt-4o-mini",  # gpt-4-turbo
+            model="gpt-4-0125-preview",  # gpt-4-turbo
             openai_api_key=openai_api_key
         )
         self.server = server
