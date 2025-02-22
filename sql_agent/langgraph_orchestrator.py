@@ -4,8 +4,10 @@ from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
 class SQLAgentOrchestrator:
-    def __init__(self, openai_api_key: str):
+    def __init__(self, openai_api_key: str, server: str = None, database: str = None):
         self.llm = ChatOpenAI(openai_api_key=openai_api_key)
+        self.server = server
+        self.database = database
         self.workflow = self._create_workflow()
         
     def _create_workflow(self) -> StateGraph:

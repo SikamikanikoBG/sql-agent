@@ -2,7 +2,12 @@ import re
 import json
 from typing import List, Dict, Any
 
-def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
+from .mssql_utils import MSSQLConnection
+
+def extract_metadata_from_server(server: str, database: str, 
+                               trusted_connection: bool = True,
+                               username: str = None, 
+                               password: str = None) -> Dict[str, Any]:
     """Extract metadata from SQL files including tables, views, and their schemas."""
     metadata = []
     
