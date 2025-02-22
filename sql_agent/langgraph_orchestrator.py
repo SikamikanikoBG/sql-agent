@@ -24,6 +24,7 @@ class SQLAgentOrchestrator:
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
             error: Union[str, None]  # Error message if query is invalid
+            agent_interactions: Dict[str, Dict]  # Store interactions for each agent
 
         # Initialize the workflow with the schema
         workflow = StateGraph(AgentState)
@@ -320,6 +321,16 @@ Rules:
             "schema_analysis": "",
             "similarity_search": [],
             "agent_interactions": {}  # Store each agent's prompts and results
+        }
+        
+        # Initialize agent_interactions for each step
+        initial_state["agent_interactions"] = {
+            "parse_intent": {},
+            "find_relevant_files": {},
+            "build_knowledge_base": {},
+            "analyze_schema": {},
+            "generate_query": {},
+            "validate_query": {}
         }
         # Use callback handler to track token usage
         with get_openai_callback() as cb:
