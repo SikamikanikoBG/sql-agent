@@ -50,8 +50,12 @@ def main():
         
         st.sidebar.markdown("### Data Files Status")
         if sql_files:
-            metadata = extract_metadata_from_sql_files(sql_files)
-            st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
+            try:
+                metadata = extract_metadata_from_sql_files(sql_files)
+                if not metadata:
+                    st.sidebar.warning("⚠️ No metadata extracted from SQL files")
+                    return
+                st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
             st.sidebar.markdown("### Knowledge Base Stats")
             st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
             st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")

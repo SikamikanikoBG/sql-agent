@@ -30,19 +30,46 @@ Example output:
             ("user", "SQL Content: {sql_content}")
         ])
         
-        response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
-            import json
-            # Clean the response content by stripping whitespace and ensuring it starts with [
-            content = response.content.strip()
-            if not content.startswith('['):
+            response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
+            if not response or not response.content:
+                print("Empty response from LLM")
                 return []
-            return json.loads(content)
+                
+            import json
+            # Clean the response content
+            content = response.content.strip()
+            print(f"Raw LLM response: {content}")  # Debug logging
+            
+            if not content or not content.startswith('['):
+                print("Invalid response format - expected JSON array")
+                return []
+                
+            parsed = json.loads(content)
+            if not isinstance(parsed, list):
+                print("Parsed response is not a list")
+                return []
+                
+            # Validate each table object
+            valid_tables = []
+            for table in parsed:
+                if not isinstance(table, dict):
+                    print(f"Invalid table object: {table}")
+                    continue
+                    
+                if 'name' not in table:
+                    print(f"Table missing name: {table}")
+                    continue
+                    
+                valid_tables.append(table)
+                
+            return valid_tables
+            
         except json.JSONDecodeError as e:
-            print(f"JSON parsing error: {e}")
+            print(f"JSON parsing error: {e}\nContent: {response.content if response else 'No response'}")
             return []
         except Exception as e:
-            print(f"Unexpected error during table extraction: {e}")
+            print(f"Unexpected error during table extraction: {type(e).__name__}: {e}")
             return []
 
     def extract_views(self, sql_content: str) -> List[Dict[str, Any]]:
