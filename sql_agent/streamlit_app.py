@@ -93,60 +93,57 @@ def main():
                            if f.endswith('.sql')]
                 metadata = extract_metadata_from_sql_files(sql_files, openai_api_key=api_key)
 
-                with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
-                    status.update(label="🧠 Processing query through LLM agents...")
-                    with st.spinner("Parsing user intent..."):
-                        result, usage_stats = agent.process_query(user_query, metadata)
-                        
-                    # Show relevant files found
-                    st.markdown("### 📑 Relevant Files")
-                    if result.get("relevant_files"):
-                        st.success(f"Found {len(result['relevant_files'])} relevant files:")
-                        # Move file display outside the status block
-                        relevant_files_content = []
-                        for file in result["relevant_files"]:
-                            try:
-                                with open(file, 'r') as f:
-                                    relevant_files_content.append((os.path.basename(file), f.read()))
-                            except Exception as e:
-                                relevant_files_content.append((os.path.basename(file), f"Error reading file: {str(e)}"))
-                    else:
-                        st.warning("No relevant files found")
-
-                    # Create columns for workflow visualization
-                    col1, col2, col3 = st.columns(3)
-                    
-                    # Show each step's result
-                    with col1:
-                        st.markdown("### 1️⃣ Parsed Intent")
-                        st.info(result.get("parsed_intent", "No intent parsed"))
-                        
-                    with col2:
-                        st.markdown("### 2️⃣ Generated Query")
-                        if result["generated_query"].startswith('ERROR:'):
-                            error_msg = result["generated_query"].split('\n')
-                            st.error(error_msg[0])  # Main error
-                            # Format available objects nicely
-                            if metadata:
-                                result['available_objects'] = "Available database objects:\n\n"
-                                if metadata.get('tables'):
-                                    result['available_objects'] += "Tables:\n- " + "\n- ".join(metadata['tables']) + "\n\n"
-                                if metadata.get('views'):
-                                    result['available_objects'] += "Views:\n- " + "\n- ".join(metadata['views']) + "\n\n"
-                                if metadata.get('procedures'):
-                                    result['available_objects'] += "Procedures:\n- " + "\n- ".join(metadata['procedures'])
-                        else:
-                            st.code(result["generated_query"], language="sql")
-                            
-                    with col3:
-                        st.markdown("### 3️⃣ Validation")
-                        if result.get("is_valid", False):
-                            st.success("✅ Query validation passed!")
-                        else:
-                            st.error(f"❌ Validation failed:\n{result.get('error', 'Unknown error')}")
-                    
-                    # Show usage statistics
-                    st.markdown("### 📊 Usage Statistics")
+                # Initialize agent steps display
+                st.markdown("### 🤖 SQL Agent Workflow")
+                steps = {
+                    "parse_intent": "1️⃣ Parse User Intent",
+                    "find_relevant_files": "2️⃣ Find Relevant Files",
+                    "build_knowledge_base": "3️⃣ Build Knowledge Base",
+                    "analyze_schema": "4️⃣ Analyze Schema",
+                    "generate_query": "5️⃣ Generate SQL Query",
+                    "validate_query": "6️⃣ Validate Query"
+                }
+                
+                # Create placeholders for each step
+                step_containers = {
+                    step: st.empty() for step in steps
+                }
+                
+                # Process query and update UI in real-time
+                result, usage_stats = agent.process_query(user_query, metadata, step_containers)
+                
+                # Display final results
+                if result.get("similarity_search"):
+                    with st.expander("📊 Similarity Search Results"):
+                        st.markdown("### Top Matching Chunks:")
+                        for idx, (score, chunk) in enumerate(result["similarity_search"], 1):
+                            st.markdown(f"**Match {idx}** (Score: {score:.3f})")
+                            st.code(chunk, language="sql")
+                
+                # Display final query with formatting
+                st.markdown("### 📝 Final Generated Query")
+                if result["generated_query"].startswith('ERROR:'):
+                    error_msg = result["generated_query"].split('\n')
+                    st.error(error_msg[0])
+                    if metadata:
+                        with st.expander("Available Database Objects"):
+                            if metadata.get('tables'):
+                                st.markdown("**Tables:**")
+                                for table in metadata['tables']:
+                                    st.markdown(f"- `{table}`")
+                            if metadata.get('views'):
+                                st.markdown("**Views:**")
+                                for view in metadata['views']:
+                                    st.markdown(f"- `{view}`")
+                            if metadata.get('procedures'):
+                                st.markdown("**Procedures:**")
+                                for proc in metadata['procedures']:
+                                    st.markdown(f"- `{proc}`")
+                else:
+                    st.code(result["generated_query"], language="sql")
+                
+                # Show usage statistics
+                with st.expander("📊 Usage Statistics"):
                     tokens = usage_stats["tokens"]
                     st.info(
                         f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"

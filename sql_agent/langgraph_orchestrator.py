@@ -283,7 +283,7 @@ Rules:
         """Calculate cost based on GPT-4 Turbo pricing."""
         return (prompt_tokens * 0.01 + completion_tokens * 0.03) / 1000  # $0.01/1K prompt, $0.03/1K completion
 
-    def process_query(self, user_input: str, metadata: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def process_query(self, user_input: str, metadata: Dict, step_containers: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """Process a user query through the workflow."""
         initial_state = {
             "user_input": user_input,
@@ -294,7 +294,9 @@ Rules:
             "generated_query": "",
             "is_valid": False,
             "error": None,
-            "schema_analysis": ""
+            "schema_analysis": "",
+            "similarity_search": [],
+            "step_containers": step_containers
         }
         # Use callback handler to track token usage
         with get_openai_callback() as cb:
