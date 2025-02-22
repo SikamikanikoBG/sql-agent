@@ -1,8 +1,8 @@
-import re
-import json
 from typing import List, Dict, Any
+from sql_agent.metadata_agent import MetadataExtractionAgent
+from langchain_openai import ChatOpenAI
 
-def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
+def extract_metadata_from_sql_files(files: List[str], openai_api_key: str = None) -> Dict[str, Any]:
     """Extract metadata from SQL files including tables, views, procedures and their schemas."""
     if not files:
         return {
@@ -17,6 +17,14 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
             "error": "No SQL files provided"
         }
 
+    # Initialize the LLM-based metadata extraction agent
+    llm = ChatOpenAI(
+        model="gpt-4-0125-preview",
+        openai_api_key=openai_api_key,
+        temperature=0
+    )
+    agent = MetadataExtractionAgent(llm)
+    
     metadata = []
     relationships = []
     
@@ -24,67 +32,45 @@ def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
         with open(file, 'r') as f:
             sql_content = f.read()
             
-            # Extract table definitions including their full schema
-            tables = re.finditer(
-                r'CREATE\s+TABLE\s+(\w+)\s*\(((?:[^()]|\([^()]*\))*)\);',
-                sql_content, 
-                re.DOTALL | re.IGNORECASE
-            )
-            # Convert iterator to list of tuples to match existing format
-            tables = [(m.group(1), m.group(2)) for m in tables]
-            
-            # Extract view definitions
-            views = re.findall(r'CREATE\s+VIEW\s+(\w+)\s+AS\s+(.*?);',
-                             sql_content, re.DOTALL | re.IGNORECASE)
-            
-            # Extract stored procedure definitions with more flexible T-SQL syntax
-            procedures = re.findall(
-                r'CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(\w+)(?:\s*\((.*?)\))?\s*(?:WITH\s+[^;]+)?(?:AS|IS)\s*(?:BEGIN)?\s*(.*?)(?:END;?|GO)',
-                sql_content, re.DOTALL | re.IGNORECASE
-            )
-            
-            # Process tables and extract relationships
-            for table_name, schema in tables:
-                table_info = {
+            # Extract tables using LLM
+            tables = agent.extract_tables(sql_content)
+            for table in tables:
+                metadata.append({
                     'type': 'table',
-                    'name': table_name.strip(),
-                    'schema': _parse_schema(schema),
+                    'name': table['name'],
+                    'schema': table['columns'],
                     'source_file': file
-                }
-                metadata.append(table_info)
-                
-                # Extract foreign key relationships
-                fk_matches = re.finditer(
-                    r'FOREIGN\s+KEY\s*\((\w+)\)\s*REFERENCES\s+(\w+)\s*\((\w+)\)',
-                    schema,
-                    re.IGNORECASE
-                )
-                for fk in fk_matches:
-                    relationships.append({
-                        'from_table': table_name.strip(),
-                        'from_column': fk.group(1),
-                        'to_table': fk.group(2),
-                        'to_column': fk.group(3)
-                    })
+                })
+                relationships.extend([
+                    {
+                        'from_table': table['name'],
+                        'from_column': rel['from_column'],
+                        'to_table': rel['to_table'],
+                        'to_column': rel['to_column']
+                    }
+                    for rel in table.get('relationships', [])
+                ])
             
-            # Process views
-            for view_name, definition in views:
+            # Extract views using LLM
+            views = agent.extract_views(sql_content)
+            for view in views:
                 metadata.append({
                     'type': 'view',
-                    'name': view_name.strip(),
-                    'definition': definition.strip(),
+                    'name': view['name'],
+                    'definition': view['definition'],
                     'source_file': file
                 })
             
-            # Process stored procedures
-            for proc_name, params, body in procedures:
+            # Extract procedures using LLM
+            procedures = agent.extract_procedures(sql_content)
+            for proc in procedures:
                 metadata.append({
                     'type': 'procedure',
-                    'name': proc_name.strip(),
-                    'parameters': _parse_parameters(params),
-                    'body': body.strip(),
+                    'name': proc['name'],
+                    'parameters': proc['parameters'],
+                    'body': proc['body'],
                     'source_file': file,
-                    'description': _extract_procedure_description(body)
+                    'description': proc['description']
                 })
     
     # Organize metadata into a more structured format

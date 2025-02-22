@@ -82,7 +82,7 @@ def main():
                 # Use the already extracted metadata
                 sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
                            if f.endswith('.sql')]
-                metadata = extract_metadata_from_sql_files(sql_files)
+                metadata = extract_metadata_from_sql_files(sql_files, openai_api_key=api_key)
 
                 with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
                     status.update(label="🧠 Processing query through LLM agents...")
