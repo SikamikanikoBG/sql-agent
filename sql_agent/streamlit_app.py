@@ -100,7 +100,11 @@ def main():
                     with col2:
                         st.markdown("### 2️⃣ Generated Query")
                         if result["generated_query"].startswith('ERROR:'):
-                            st.error(result["generated_query"])
+                            error_msg = result["generated_query"].split('\n')
+                            st.error(error_msg[0])  # Main error
+                            if len(error_msg) > 1:  # Available objects info
+                                with st.expander("Show available database objects"):
+                                    st.text('\n'.join(error_msg[1:]))
                         else:
                             st.code(result["generated_query"], language="sql")
                             
