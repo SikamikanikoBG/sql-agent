@@ -126,9 +126,9 @@ def main():
                         if result["generated_query"].startswith('ERROR:'):
                             error_msg = result["generated_query"].split('\n')
                             st.error(error_msg[0])  # Main error
-                            if len(error_msg) > 1:  # Available objects info
-                                with st.expander("Show available database objects"):
-                                    st.text('\n'.join(error_msg[1:]))
+                            # Store additional info for later display
+                            if len(error_msg) > 1:
+                                result['available_objects'] = '\n'.join(error_msg[1:])
                         else:
                             st.code(result["generated_query"], language="sql")
                             
@@ -148,6 +148,11 @@ def main():
                     )
                     
                     status.update(label="✅ Processing complete!", state="complete")
+
+                # Display error details if any
+                if result.get("available_objects"):
+                    with st.expander("Show available database objects"):
+                        st.text(result["available_objects"])
 
                 # Display relevant files content outside the status block
                 if result.get("relevant_files"):
