@@ -8,6 +8,8 @@ setup(
         "streamlit",
         "openai",
         "langgraph",
-        "pyodbc"
+        "pyodbc",
+        "langchain",
+        "langchain-community"
     ]
 )
