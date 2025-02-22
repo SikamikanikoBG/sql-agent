@@ -54,6 +54,11 @@ class SQLAgentOrchestrator:
     
     def _generate_sql_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Generate SQL query based on parsed intent and metadata."""
+        # Check if metadata is empty or missing key components
+        if not state["metadata"] or not any(state["metadata"].get(key) for key in ["tables", "views", "procedures"]):
+            state["generated_query"] = "ERROR: No database schema loaded. Please load SQL files first."
+            return state
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a SQL query generator. Generate queries using ONLY the available database objects.
             
@@ -98,10 +103,10 @@ Rules:
         """Validate generated SQL query."""
         query = state["generated_query"].upper()
         
-        # Check if it's an error message from the LLM
+        # Check if it's an error message
         if query.startswith('ERROR:'):
             state["is_valid"] = False
-            state["error"] = query
+            state["error"] = query.replace('ERROR:', '').strip()
             return state
             
         # Enhanced validation
