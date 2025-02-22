@@ -19,7 +19,7 @@ class SQLAgentOrchestrator:
             parsed_intent: Annotated[str, "The parsed user intent"]
             generated_query: Annotated[str, "The generated SQL query"]
             is_valid: Annotated[bool, "Whether the query is valid"]
-            error: Annotated[str | None, "Error message if query is invalid"]
+            error: Annotated[str, "Error message if query is invalid"] | None
 
         # Initialize the workflow with the schema
         workflow = StateGraph(AgentState)
