@@ -54,9 +54,17 @@ class SQLAgentOrchestrator:
     
     def _generate_sql_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Generate SQL query based on parsed intent and metadata."""
-        # Check if metadata is empty or missing key components
-        if not state["metadata"] or not any(state["metadata"].get(key) for key in ["tables", "views", "procedures"]):
-            state["generated_query"] = "ERROR: No database schema loaded. Please load SQL files first."
+        # Check metadata state
+        if not state.get("metadata"):
+            state["generated_query"] = "ERROR: No metadata provided"
+            return state
+            
+        if "error" in state["metadata"]:
+            state["generated_query"] = f"ERROR: {state['metadata']['error']}"
+            return state
+
+        if not any(state["metadata"].get(key) for key in ["tables", "views", "procedures"]):
+            state["generated_query"] = "ERROR: No database objects found in the provided SQL files"
             return state
 
         prompt = ChatPromptTemplate.from_messages([
