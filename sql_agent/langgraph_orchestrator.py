@@ -64,6 +64,12 @@ class SQLAgentOrchestrator:
 
     def _find_relevant_files(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Find relevant SQL files using similarity search."""
+        system_prompt = """You are a similarity search engine for SQL files.
+Find files that contain relevant SQL code, table definitions, or stored procedures
+that could help answer the user's query."""
+        
+        user_prompt = f"Finding relevant SQL files for intent: {state['parsed_intent']}"
+        
         # Create embeddings for all SQL files
         sql_files = []
         for root, _, files in os.walk("./sql_agent/data"):
@@ -87,6 +93,15 @@ class SQLAgentOrchestrator:
             os.path.join("./sql_agent/data", sql_files[i][0])
             for i, _ in enumerate(results)
         ]
+        
+        # Store interaction details
+        state["agent_interactions"]["find_relevant_files"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "result": f"Found {len(state['relevant_files'])} relevant files:\n" + 
+                     "\n".join(state['relevant_files'])
+        }
+        
         return state
 
     def _analyze_schema(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -129,7 +144,12 @@ Analyze the schema and explain how it relates to the user's intent."""
 
     def _build_knowledge_base(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Build knowledge base from relevant files."""
+        system_prompt = """Analyze if this SQL content is relevant to the user's intent.
+Focus on finding table definitions, queries, or stored procedures that could help
+answer the user's query. Return YES or NO."""
+
         knowledge = []
+        analysis_results = []
         
         for file_path in state["relevant_files"]:
             with open(file_path, 'r') as f:
@@ -137,7 +157,7 @@ Analyze the schema and explain how it relates to the user's intent."""
                 
             # Ask LLM if this content is relevant
             prompt = ChatPromptTemplate.from_messages([
-                ("system", "Analyze if this SQL content is relevant to the user's intent. Return YES or NO."),
+                ("system", system_prompt),
                 ("user", "Intent: {intent}\nSQL Content: {content}")
             ])
             
@@ -146,10 +166,21 @@ Analyze the schema and explain how it relates to the user's intent."""
                 content=content
             ))
             
-            if "YES" in response.content.upper():
+            is_relevant = "YES" in response.content.upper()
+            analysis_results.append(f"File {file_path}: {'Relevant' if is_relevant else 'Not relevant'}")
+            
+            if is_relevant:
                 knowledge.append(content)
         
         state["knowledge_base"] = "\n\n".join(knowledge)
+        
+        # Store interaction details
+        state["agent_interactions"]["build_knowledge_base"] = {
+            "system_prompt": system_prompt,
+            "user_prompt": f"Analyzing relevance of {len(state['relevant_files'])} files for intent: {state['parsed_intent']}",
+            "result": "\n".join(analysis_results)
+        }
+        
         return state
 
     def _parse_user_intent(self, state: Dict[str, Any]) -> Dict[str, Any]:
