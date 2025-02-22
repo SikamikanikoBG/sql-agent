@@ -50,12 +50,21 @@ class SQLAgentOrchestrator:
     
     def _validate_sql(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Validate generated SQL query."""
-        # Basic validation - can be expanded
-        if "SELECT" not in state["generated_query"].upper():
+        query = state["generated_query"].upper()
+        
+        # Enhanced validation
+        if not query.strip():
             state["is_valid"] = False
-            state["error"] = "Invalid SQL query generated"
+            state["error"] = "Empty query generated"
+        elif "SELECT" not in query:
+            state["is_valid"] = False
+            state["error"] = "Query must include SELECT statement"
+        elif "DROP" in query or "DELETE" in query or "TRUNCATE" in query:
+            state["is_valid"] = False
+            state["error"] = "Destructive operations not allowed"
         else:
             state["is_valid"] = True
+            state["error"] = None
         return state
     
     def process_query(self, user_input: str, metadata: Dict) -> Dict[str, Any]:

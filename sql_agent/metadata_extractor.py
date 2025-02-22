@@ -2,7 +2,7 @@ import re
 import json
 from typing import List, Dict
 
-def extract_metadata_from_sql_files(files: List[str]) -> List[Dict]:
+def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
     """Extract metadata from SQL files including tables, views, and their schemas."""
     metadata = []
     
@@ -34,7 +34,18 @@ def extract_metadata_from_sql_files(files: List[str]) -> List[Dict]:
                     'source_file': file
                 })
     
-    return metadata
+    # Organize metadata into a more structured format
+    return {
+        "tables": [item["name"] for item in metadata if item["type"] == "table"],
+        "views": [item["name"] for item in metadata if item["type"] == "view"],
+        "schemas": {
+            item["name"]: item["schema"] for item in metadata if item["type"] == "table"
+        },
+        "view_definitions": {
+            item["name"]: item["definition"] for item in metadata if item["type"] == "view"
+        },
+        "raw": metadata
+    }
 
 def _parse_schema(schema_text: str) -> List[Dict]:
     """Parse column definitions from schema text."""
