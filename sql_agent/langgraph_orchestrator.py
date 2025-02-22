@@ -95,12 +95,12 @@ that could help answer the user's query."""
         ]
         
         # Store interaction details
-        state["agent_interactions"]["find_relevant_files"] = {
+        state["agent_interactions"]["find_relevant_files"].update({
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             "result": f"Found {len(state['relevant_files'])} relevant files:\n" + 
                      "\n".join(state['relevant_files'])
-        }
+        })
         
         return state
 
@@ -134,11 +134,11 @@ Analyze the schema and explain how it relates to the user's intent."""
         state["schema_analysis"] = response.content
         
         # Store interaction details
-        state["agent_interactions"]["analyze_schema"] = {
+        state["agent_interactions"]["analyze_schema"].update({
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             "result": response.content
-        }
+        })
         
         return state
 
@@ -175,11 +175,11 @@ answer the user's query. Return YES or NO."""
         state["knowledge_base"] = "\n\n".join(knowledge)
         
         # Store interaction details
-        state["agent_interactions"]["build_knowledge_base"] = {
+        state["agent_interactions"]["build_knowledge_base"].update({
             "system_prompt": system_prompt,
             "user_prompt": f"Analyzing relevance of {len(state['relevant_files'])} files for intent: {state['parsed_intent']}",
             "result": "\n".join(analysis_results)
-        }
+        })
         
         return state
 
@@ -197,11 +197,11 @@ answer the user's query. Return YES or NO."""
         state["parsed_intent"] = response.content
         
         # Store interaction details
-        state["agent_interactions"]["parse_intent"] = {
+        state["agent_interactions"]["parse_intent"].update({
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             "result": response.content
-        }
+        })
         
         return state
     
@@ -292,18 +292,21 @@ Schema Analysis:
         
         state["generated_query"] = response.content
         
+        # Format the prompts first
+        formatted_messages = prompt.format_messages(
+            metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
+            procedures=procedures_info,
+            knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
+            schema_analysis=state.get("schema_analysis", "No schema analysis available."),
+            intent=state["parsed_intent"]
+        )
+        
         # Store interaction details with formatted prompts
-        state["agent_interactions"]["generate_query"] = {
+        state["agent_interactions"]["generate_query"].update({
             "system_prompt": system_prompt,
-            "user_prompt": prompt.format_messages(
-                metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
-                procedures=procedures_info,
-                knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
-                schema_analysis=state.get("schema_analysis", "No schema analysis available."),
-                intent=state["parsed_intent"]
-            )[1].content,  # Get the formatted user message content
+            "user_prompt": formatted_messages[1].content,  # Get the formatted user message content
             "result": response.content
-        }
+        })
         
         return state
     
@@ -375,11 +378,11 @@ Against available objects:
         state["error"] = None
         
         # Store interaction details
-        state["agent_interactions"]["validate_query"] = {
+        state["agent_interactions"]["validate_query"].update({
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             "result": "Query validation passed" if state["is_valid"] else f"Validation failed: {state['error']}"
-        }
+        })
         
         return state
     
@@ -403,14 +406,38 @@ Against available objects:
             "agent_interactions": {}  # Store each agent's prompts and results
         }
         
-        # Initialize agent_interactions for each step
+        # Initialize agent_interactions with empty dictionaries
         initial_state["agent_interactions"] = {
-            "parse_intent": {},
-            "find_relevant_files": {},
-            "build_knowledge_base": {},
-            "analyze_schema": {},
-            "generate_query": {},
-            "validate_query": {}
+            "parse_intent": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            },
+            "find_relevant_files": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            },
+            "build_knowledge_base": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            },
+            "analyze_schema": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            },
+            "generate_query": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            },
+            "validate_query": {
+                "system_prompt": "",
+                "user_prompt": "",
+                "result": ""
+            }
         }
         # Use callback handler to track token usage
         with get_openai_callback() as cb:
