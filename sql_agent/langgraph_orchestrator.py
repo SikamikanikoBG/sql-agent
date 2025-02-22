@@ -217,6 +217,7 @@ Rules:
             metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
             procedures=procedures_info,
             knowledge_base=state.get("knowledge_base", "No relevant SQL examples found."),
+            schema_analysis=state.get("schema_analysis", "No schema analysis available."),
             intent=state["parsed_intent"]
         ))
         state["generated_query"] = response.content
