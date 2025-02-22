@@ -169,7 +169,9 @@ Rules:
 7. When using stored procedures, follow their exact parameter requirements
 8. Maintain exact case sensitivity for all table names, column names, and other identifiers
 9. For transaction/sales queries, check both sales and transaction-related tables
-10. Use appropriate JOINs to connect related tables (e.g., sales.customer_id with employees.id)"""),
+10. Use appropriate JOINs to connect related tables (e.g., sales.customer_id with employees.id)
+11. When looking for transactions, consider 'sales' table as the primary source of transaction data
+12. Map common synonyms: 'transactions' -> 'sales', 'customers' -> 'employees' when appropriate"""),
             ("user", "{intent}")
         ])
         
