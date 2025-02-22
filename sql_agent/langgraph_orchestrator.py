@@ -102,7 +102,7 @@ class SQLAgentOrchestrator:
             # Ask LLM if this content is relevant
             prompt = ChatPromptTemplate.from_messages([
                 ("system", "Analyze if this SQL content is relevant to the user's intent. Return YES or NO."),
-                ("user", f"Intent: {state['parsed_intent']}\nSQL Content: {content}")
+                ("user", "Intent: {intent}\nSQL Content: {content}")
             ])
             
             response = self.llm.invoke(prompt.format_messages(
@@ -256,6 +256,8 @@ Rules:
             "user_input": user_input,
             "metadata": metadata,
             "parsed_intent": "",
+            "relevant_files": [],
+            "knowledge_base": "",
             "generated_query": "",
             "is_valid": False,
             "error": None
