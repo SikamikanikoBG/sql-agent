@@ -67,7 +67,15 @@ class SQLAgentOrchestrator:
             return state
 
         if not any(state["metadata"].get(key) for key in ["tables", "views", "procedures"]):
-            state["generated_query"] = "ERROR: No database objects found in the provided SQL files"
+            available_objects = []
+            if state["metadata"].get("tables"):
+                available_objects.append(f"Tables: {', '.join(state['metadata']['tables'])}")
+            if state["metadata"].get("views"):
+                available_objects.append(f"Views: {', '.join(state['metadata']['views'])}")
+            if state["metadata"].get("procedures"):
+                available_objects.append(f"Procedures: {', '.join(state['metadata']['procedures'])}")
+            
+            state["generated_query"] = "ERROR: Required database objects not found.\nAvailable objects:\n" + "\n".join(available_objects)
             return state
 
         prompt = ChatPromptTemplate.from_messages([
