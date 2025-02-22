@@ -1,3 +1,4 @@
+import re
 from typing import List, Dict, Any
 from sql_agent.metadata_agent import MetadataExtractionAgent
 from langchain_openai import ChatOpenAI
