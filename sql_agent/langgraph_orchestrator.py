@@ -54,16 +54,19 @@ class SQLAgentOrchestrator:
     def _generate_sql_query(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Generate SQL query based on parsed intent and metadata."""
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a SQL query generator. Generate queries using ONLY the tables and columns available in the schema.
+            ("system", """You are a SQL query generator. Generate queries using ONLY the available database objects.
             
-Available tables and their schemas:
+Available database objects:
 {metadata}
 
+If there are stored procedures that match the user's intent, use EXEC or EXECUTE to call them with appropriate parameters.
+
 Rules:
-1. ONLY use tables and columns that exist in the schema above
-2. If the requested tables or columns don't exist, respond with 'ERROR: Required tables/columns not found in schema'
-3. Do not invent or assume the existence of any tables or columns
-4. Return only the SQL query, no explanations"""),
+1. ONLY use tables, views, and procedures that exist in the schema
+2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
+3. Do not invent or assume the existence of any database objects
+4. For complex operations, prefer using existing stored procedures if available
+5. Return only the SQL query or procedure call, no explanations"""),
             ("user", "{intent}")
         ])
         
