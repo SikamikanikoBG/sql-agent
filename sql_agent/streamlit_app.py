@@ -79,19 +79,12 @@ def main():
                 return
 
             try:
+                # Use the already extracted metadata
+                sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                           if f.endswith('.sql')]
+                metadata = extract_metadata_from_sql_files(sql_files)
+
                 with st.status("🤖 SQL Agent Workflow", expanded=True) as status:
-                    status.update(label="📂 Processing query...")
-                    
-                    # Use the already extracted metadata
-                    sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                               if f.endswith('.sql')]
-                    metadata = extract_metadata_from_sql_files(sql_files)
-
-                    # Display metadata found
-                    if metadata:
-                        with st.expander("📊 Extracted SQL Metadata", expanded=False):
-                            st.json(metadata)
-
                     status.update(label="🧠 Processing query through LLM agents...")
                     with st.spinner("Parsing user intent..."):
                         result = agent.process_query(user_query, metadata)
