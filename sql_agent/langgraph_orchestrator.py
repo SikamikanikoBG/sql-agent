@@ -160,13 +160,14 @@ IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS p
 Use EXEC or EXECUTE to call procedures with appropriate parameters.
 
 Rules:
-1. ONLY use tables, views, and procedures that exist in the schema
+1. ONLY use tables, views, and procedures that exist in the schema with EXACT case sensitivity
 2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
 3. Do not invent or assume the existence of any database objects
 4. For complex operations, ALWAYS check and use existing stored procedures first
 5. Use the knowledge base content as reference for similar queries and table relationships
 6. Return only the SQL query or procedure call, no explanations
-7. When using stored procedures, follow their exact parameter requirements"""),
+7. When using stored procedures, follow their exact parameter requirements
+8. Maintain exact case sensitivity for all table names, column names, and other identifiers"""),
             ("user", "{intent}")
         ])
         
@@ -230,10 +231,10 @@ Rules:
         # Simple regex to match table names after FROM and JOIN
         import re
         tables_in_query = set(re.findall(r'FROM\s+(\w+)|JOIN\s+(\w+)', query))
-        tables_in_query = {t[0] or t[1] for t in tables_in_query}  # Flatten tuple matches
+        tables_in_query = {(t[0] or t[1]).lower() for t in tables_in_query}  # Flatten tuple matches and convert to lowercase
         
-        # Check if all tables exist in metadata
-        available_tables = set(state["metadata"].get("tables", []))
+        # Check if all tables exist in metadata (case-insensitive)
+        available_tables = {t.lower() for t in state["metadata"].get("tables", [])}
         unknown_tables = tables_in_query - available_tables
         
         if unknown_tables:
