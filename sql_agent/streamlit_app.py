@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import tempfile
 from typing import Dict
 from .langgraph_orchestrator import SQLAgentOrchestrator
 from .metadata_extractor import extract_metadata_from_sql_files
@@ -13,6 +14,12 @@ def main():
         "OpenAI API Key",
         value=os.getenv('OPENAI_API_KEY', ''),
         type="password"
+    )
+
+    # Mode selection
+    mode = st.sidebar.selectbox(
+        "Operation Mode",
+        ["Local SQL Files", "Remote SQL Server (Coming Soon)"]
     )
 
     if not api_key:
@@ -29,12 +36,19 @@ def main():
             height=100
         )
 
-        # File uploader for SQL files
-        uploaded_files = st.file_uploader(
-            "Upload SQL files (optional)",
-            accept_multiple_files=True,
-            type=['sql']
-        )
+        if mode == "Local SQL Files":
+            # File uploader for SQL files
+            uploaded_files = st.file_uploader(
+                "Upload SQL files",
+                accept_multiple_files=True,
+                type=['sql']
+            )
+            
+            # Data folder path option
+            data_folder = st.text_input(
+                "Or enter path to folder with SQL files:",
+                value="./sql_agent/data"
+            )
 
         if st.button("Generate Query"):
             if not user_query.strip():
@@ -42,21 +56,43 @@ def main():
                 return
 
             try:
-                # Extract metadata from uploaded files if any
+                # Extract metadata based on mode
                 metadata = {}
-                if uploaded_files:
-                    # Save uploaded files temporarily
+                
+                if mode == "Local SQL Files":
+                    # Process uploaded files if any
                     temp_files = []
-                    for file in uploaded_files:
-                        with open(f"temp_{file.name}", "w") as f:
-                            f.write(file.getvalue().decode())
-                        temp_files.append(f"temp_{file.name}")
+                    if uploaded_files:
+                        for file in uploaded_files:
+                            with tempfile.NamedTemporaryFile(delete=False, suffix='.sql') as tmp:
+                                tmp.write(file.getvalue())
+                                temp_files.append(tmp.name)
+                        
+                        st.info(f"Processing {len(temp_files)} uploaded SQL files...")
+                        metadata = extract_metadata_from_sql_files(temp_files)
+                        
+                        # Cleanup temp files
+                        for file in temp_files:
+                            os.remove(file)
                     
-                    metadata = extract_metadata_from_sql_files(temp_files)
-                    
-                    # Cleanup temp files
-                    for file in temp_files:
-                        os.remove(file)
+                    # Process data folder if specified and exists
+                    elif os.path.exists(data_folder) and os.path.isdir(data_folder):
+                        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                                     if f.endswith('.sql')]
+                        
+                        if sql_files:
+                            st.info(f"Processing {len(sql_files)} SQL files from {data_folder}...")
+                            metadata = extract_metadata_from_sql_files(sql_files)
+                        else:
+                            st.warning(f"No SQL files found in {data_folder}")
+                    else:
+                        st.error(f"Data folder {data_folder} not found or not a directory")
+                        return
+
+                # Display metadata found
+                if metadata:
+                    with st.expander("Extracted SQL Metadata", expanded=False):
+                        st.json(metadata)
 
                 # Process the query
                 result = agent.process_query(user_query, metadata)
@@ -72,6 +108,7 @@ def main():
 
             except Exception as e:
                 st.error(f"Error processing query: {str(e)}")
+                st.exception(e)  # Show detailed error for debugging
 
 if __name__ == "__main__":
     main()
