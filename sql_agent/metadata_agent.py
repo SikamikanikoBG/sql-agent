@@ -1,4 +1,5 @@
 from typing import Dict, Any, List
+import json
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 
@@ -36,7 +37,6 @@ Example output:
                 print("Empty response from LLM")
                 return []
                 
-            import json
             # Clean the response content
             content = response.content.strip()
             print(f"Raw LLM response: {content}")  # Debug logging
@@ -91,7 +91,6 @@ Example output:
         
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
-            import json
             content = response.content.strip()
             if not content.startswith('['):
                 return []
@@ -129,7 +128,6 @@ Example output:
         
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
         try:
-            import json
             content = response.content.strip()
             if not content.startswith('['):
                 return []
