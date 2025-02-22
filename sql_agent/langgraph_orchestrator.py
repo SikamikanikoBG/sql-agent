@@ -51,7 +51,7 @@ class SQLAgentOrchestrator:
     
     def __init__(self, openai_api_key: str, server: str = None, database: str = None):
         self.llm = ChatOpenAI(
-            model="gpt-4o-mini",
+            model="gpt-4-0125-preview",
             openai_api_key=openai_api_key
         )
         self.embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)

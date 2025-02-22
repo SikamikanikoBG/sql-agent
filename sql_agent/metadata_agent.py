@@ -27,7 +27,7 @@ Example output:
         {"from_column": "role_id", "to_table": "roles", "to_column": "id"}
     ]
 }]"""),
-            ("user", "{sql_content}")
+            ("user", "SQL Content: {sql_content}")
         ])
         
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
@@ -51,7 +51,7 @@ Example output:
     "name": "active_users",
     "definition": "SELECT * FROM users WHERE status = 'active'"
 }]"""),
-            ("user", "{sql_content}")
+            ("user", "SQL Content: {sql_content}")
         ])
         
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
@@ -82,7 +82,7 @@ Example output:
     "description": "Creates a new user account",
     "body": "INSERT INTO users (email) VALUES (@email)..."
 }]"""),
-            ("user", "{sql_content}")
+            ("user", "SQL Content: {sql_content}")
         ])
         
         response = self.llm.invoke(prompt.format_messages(sql_content=sql_content))
