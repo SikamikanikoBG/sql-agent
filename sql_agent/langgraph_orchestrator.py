@@ -33,7 +33,11 @@ class SQLAgentOrchestrator:
         workflow.add_edge("parse_intent", "generate_query")
         workflow.add_edge("generate_query", "validate_query")
         
-        return workflow
+        # Set the entry point
+        workflow.set_entry_point("parse_intent")
+        
+        # Compile the workflow
+        return workflow.compile()
     
     def _parse_user_intent(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Parse user's natural language query intent."""
