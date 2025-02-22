@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import tempfile
 from typing import Dict
+import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 from sql_agent.metadata_extractor import extract_metadata_from_sql_files
 
@@ -9,6 +10,8 @@ def main():
     st.title("SQL Agent - Query Generation and Execution")
     st.write("Enter your SQL-related prompt below to generate queries and analyze data.")
 
+    st.sidebar.markdown("### Configuration")
+    
     # Get OpenAI API key
     api_key = st.sidebar.text_input(
         "OpenAI API Key",
@@ -16,6 +19,20 @@ def main():
         type="password"
     )
 
+    # Check OpenAI API connectivity
+    if api_key:
+        try:
+            openai.api_key = api_key
+            models = openai.models.list()
+            st.sidebar.success("✅ OpenAI API connection successful")
+            available_models = [model.id for model in models if "gpt" in model.id.lower()]
+            st.sidebar.info(f"Available GPT models: {', '.join(available_models)}")
+        except Exception as e:
+            st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Operation Mode")
+    
     # Mode selection
     mode = st.sidebar.selectbox(
         "Operation Mode",
@@ -81,7 +98,13 @@ def main():
                         sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
                                      if f.endswith('.sql')]
                         
+                        # Update sidebar with file scanning info
+                        st.sidebar.markdown("### Data Files Status")
+                        st.sidebar.info(f"Found {len(sql_files)} SQL files in data folder")
                         if sql_files:
+                            st.sidebar.success("Files found:")
+                            for file in sql_files:
+                                st.sidebar.text(f"📄 {os.path.basename(file)}")
                             st.info(f"Processing {len(sql_files)} SQL files from {data_folder}...")
                             metadata = extract_metadata_from_sql_files(sql_files)
                         else:
