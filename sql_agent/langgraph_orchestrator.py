@@ -59,19 +59,35 @@ class SQLAgentOrchestrator:
 Available database objects:
 {metadata}
 
-If there are stored procedures that match the user's intent, use EXEC or EXECUTE to call them with appropriate parameters.
+Available Stored Procedures:
+{procedures}
+
+IMPORTANT: If there are stored procedures that match the user's intent, ALWAYS prefer using them over writing new queries.
+Use EXEC or EXECUTE to call procedures with appropriate parameters.
 
 Rules:
 1. ONLY use tables, views, and procedures that exist in the schema
 2. If the required database objects don't exist, respond with 'ERROR: Required database objects not found'
 3. Do not invent or assume the existence of any database objects
-4. For complex operations, prefer using existing stored procedures if available
-5. Return only the SQL query or procedure call, no explanations"""),
+4. For complex operations, ALWAYS check and use existing stored procedures first
+5. Return only the SQL query or procedure call, no explanations
+6. When using stored procedures, follow their exact parameter requirements"""),
             ("user", "{intent}")
         ])
         
+        # Format procedure information for the prompt
+        procedures_info = ""
+        if "procedure_info" in state["metadata"]:
+            for proc_name, info in state["metadata"]["procedure_info"].items():
+                procedures_info += f"\n{proc_name}:\n"
+                procedures_info += f"  Description: {info['description']}\n"
+                procedures_info += "  Parameters:\n"
+                for param in info['parameters']:
+                    procedures_info += f"    - @{param['name']} ({param['type']}) {param['direction']}\n"
+
         response = self.llm(prompt.format_messages(
-            metadata=json.dumps(state["metadata"], indent=2),
+            metadata=json.dumps({k:v for k,v in state["metadata"].items() if k != "procedure_info"}, indent=2),
+            procedures=procedures_info,
             intent=state["parsed_intent"]
         ))
         state["generated_query"] = response.content
@@ -93,10 +109,21 @@ Rules:
             state["error"] = "Empty query generated"
             return state
             
-        if "SELECT" not in query:
+        # Allow both SELECT queries and stored procedure calls
+        if not ("SELECT" in query or "EXEC" in query or "EXECUTE" in query):
             state["is_valid"] = False
-            state["error"] = "Query must include SELECT statement"
+            state["error"] = "Query must be either a SELECT statement or a stored procedure call"
             return state
+
+        # Validate stored procedure calls
+        if "EXEC" in query or "EXECUTE" in query:
+            proc_match = re.search(r'(?:EXEC|EXECUTE)\s+(\w+)', query)
+            if proc_match:
+                proc_name = proc_match.group(1)
+                if proc_name not in state["metadata"].get("procedures", []):
+                    state["is_valid"] = False
+                    state["error"] = f"Procedure {proc_name} does not exist"
+                    return state
             
         if "DROP" in query or "DELETE" in query or "TRUNCATE" in query:
             state["is_valid"] = False
