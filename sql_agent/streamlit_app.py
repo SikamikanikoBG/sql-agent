@@ -93,13 +93,14 @@ def main():
                     st.markdown("### 📑 Relevant Files")
                     if result.get("relevant_files"):
                         st.success(f"Found {len(result['relevant_files'])} relevant files:")
+                        # Move file display outside the status block
+                        relevant_files_content = []
                         for file in result["relevant_files"]:
-                            with st.expander(f"📄 {os.path.basename(file)}"):
-                                try:
-                                    with open(file, 'r') as f:
-                                        st.code(f.read(), language="sql")
-                                except Exception as e:
-                                    st.error(f"Error reading file: {str(e)}")
+                            try:
+                                with open(file, 'r') as f:
+                                    relevant_files_content.append((os.path.basename(file), f.read()))
+                            except Exception as e:
+                                relevant_files_content.append((os.path.basename(file), f"Error reading file: {str(e)}"))
                     else:
                         st.warning("No relevant files found")
 
@@ -138,6 +139,16 @@ def main():
                     )
                     
                     status.update(label="✅ Processing complete!", state="complete")
+
+                # Display relevant files content outside the status block
+                if result.get("relevant_files"):
+                    st.markdown("### 📑 File Contents")
+                    for filename, content in relevant_files_content:
+                        with st.expander(f"📄 {filename}"):
+                            if content.startswith("Error"):
+                                st.error(content)
+                            else:
+                                st.code(content, language="sql")
 
             except Exception as e:
                 st.error(f"Error processing query: {str(e)}")
