@@ -138,8 +138,6 @@ class SQLAgentApp:
                 asyncio.run(self.agent.initialize_vector_store([str(f) for f in sql_files]))
         try:
             with st.spinner("Generating SQL query..."):
-                # Use asyncio to run the async function
-                import asyncio
                 results, usage_stats = asyncio.run(self.agent.process_query(query, metadata))
                 
             if results.error:
