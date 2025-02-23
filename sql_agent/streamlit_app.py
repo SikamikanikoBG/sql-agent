@@ -133,8 +133,8 @@ class SQLAgentApp:
                 import asyncio
                 results, usage_stats = asyncio.run(self.agent.process_query(query, metadata))
                 
-            if "error" in results:
-                st.error(f"❌ Error: {results['error']}")
+            if results.error:
+                st.error(f"❌ Error: {results.error}")
                 return
                 
             self._display_query_results(results, usage_stats)
@@ -143,7 +143,7 @@ class SQLAgentApp:
             logger.error(f"Error processing query: {str(e)}", exc_info=True)
             st.error(f"❌ Error processing query: {str(e)}")
             
-    def _display_query_results(self, results: Dict, usage_stats: Dict):
+    def _display_query_results(self, results, usage_stats):
         """Display query processing results and visualizations."""
         # Display agent steps
         st.markdown("### 🤖 Processing Steps")

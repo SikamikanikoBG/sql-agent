@@ -5,11 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -282,9 +281,11 @@ Validation Results:"""
             sections.append("Tables:")
             for table in metadata["tables"]:
                 sections.append(f"- {table}")
-                if metadata.get("schemas", {}).get(table):
-                    for column in metadata["schemas"][table]:
-                        sections.append(f"  * {column['name']}: {column['type']}")
+                if isinstance(table, str) and metadata.get("schemas", {}).get(table):
+                    schema = metadata["schemas"][table]
+                    if isinstance(schema, list):
+                        for column in schema:
+                            sections.append(f"  * {column['name']}: {column['type']}")
         
         if metadata.get("views"):
             sections.append("\nViews:")
