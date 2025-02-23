@@ -17,9 +17,35 @@ class SQLAgentApp:
     """Streamlit application for SQL query generation and analysis."""
     
     def __init__(self):
-        self.agent = None
         self.metadata_extractor = MetadataExtractor()
         self._init_session_state()
+        # Initialize agent and vector store once at startup
+        self.agent = SQLAgentOrchestrator()
+        self._initialize_data()
+        
+    def _initialize_data(self, data_folder: str = "./sql_agent/data"):
+        """Initialize data and vector store once at startup"""
+        try:
+            data_path = Path(data_folder)
+            if not data_path.exists():
+                st.error("❌ Data folder not found")
+                return
+                
+            sql_files = list(data_path.glob("*.sql"))
+            if not sql_files:
+                st.error("❌ No SQL files found")
+                return
+                
+            # Extract metadata and initialize vector store once
+            metadata = self.metadata_extractor.extract_metadata_from_sql_files(
+                [str(f) for f in sql_files]
+            )
+            if metadata:
+                st.session_state.metadata = metadata
+                # Initialize vector store once
+                self.agent.initialize_vector_store([str(f) for f in sql_files])
+        except Exception as e:
+            st.error(f"❌ Error initializing data: {str(e)}")
         
     def _init_session_state(self):
         if 'metadata' not in st.session_state:
@@ -92,39 +118,8 @@ class SQLAgentApp:
         return True
         
     def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
-        # Return existing metadata if already loaded
-        if st.session_state.metadata is not None and self.agent is not None:
-            return st.session_state.metadata
-
-        try:
-            data_path = Path(data_folder)
-            if not data_path.exists():
-                st.error("❌ Data folder not found")
-                return None
-                
-            sql_files = list(data_path.glob("*.sql"))
-            if not sql_files:
-                st.error("❌ No SQL files found")
-                return None
-                
-            with st.spinner("Loading database schema and initializing vector store..."):
-                # Extract metadata first
-                metadata = self.metadata_extractor.extract_metadata_from_sql_files(
-                    [str(f) for f in sql_files]
-                )
-                
-                if not metadata:
-                    st.warning("⚠️ No metadata extracted")
-                    return None
-
-                # Initialize agent and vector store only once
-                if self.agent is None:
-                    self.agent = SQLAgentOrchestrator()
-                    self.agent.initialize_vector_store([str(f) for f in sql_files])
-                
-                st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
-                st.session_state.metadata = metadata
-                return metadata
+        """Just return the already loaded metadata"""
+        return st.session_state.metadata
                 
         except Exception as e:
             logger.error(f"Error loading metadata: {str(e)}")
