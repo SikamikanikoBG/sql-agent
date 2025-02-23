@@ -365,10 +365,10 @@ Validation Results:"""
                 logger.info(f"Metadata: {doc.metadata}")
                 
             # Convert L2 distance to cosine similarity (0-1 range)
-            # FAISS returns L2 distance, smaller is better
-            max_distance = max(score for _, score in results) if results else 1
+            # FAISS returns (Document, score) tuples
+            max_distance = max(score for doc, score in results) if results else 1
             normalized_results = []
-            for score, doc in results:
+            for doc, score in results:
                 # Convert L2 distance to similarity score (0-1)
                 similarity = 1 - (score / max_distance)
                 normalized_results.append((similarity, doc))
@@ -387,12 +387,15 @@ Validation Results:"""
                 logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
                 # Always include top examples even if below threshold
                 if len(similar_examples) < 2 or similarity >= self.similarity_threshold:
-                    example = {
-                        'content': doc.page_content,
-                        'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
-                    }
-                    similar_examples.append((similarity, example))
-                    logger.info(f"Added example with similarity {similarity}")
+                    try:
+                        example = {
+                            'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
+                            'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
+                        }
+                        similar_examples.append((similarity, example))
+                        logger.info(f"Added example with similarity {similarity}")
+                    except Exception as e:
+                        logger.error(f"Error processing document: {str(e)}")
                 else:
                     logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
             
