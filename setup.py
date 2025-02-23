@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="sql_agent",
-    version="0.1.0",
+    version="0.2.0",
     description="An AI-powered SQL query generation and analysis tool",
     author="Arsen",
     author_email="arsen@example.com",
