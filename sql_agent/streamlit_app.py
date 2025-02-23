@@ -201,8 +201,6 @@ class SQLAgentApp:
                                     score, content = example
                                     st.markdown(f"**Example {i} (Similarity: {score:.2f})**")
                                     st.code(content, language="sql")
-                        else:
-                            st.info("No similar code snippets found")
                 
                 # Vector similarity visualization
                 with st.expander("🔍 Vector Search Visualization", expanded=False):
