@@ -110,7 +110,7 @@ class SQLAgentApp:
                     st.warning("⚠️ No metadata extracted")
                     return None
                 
-                st.success(f"📁 Loaded {len(sql_files)} SQL files")
+                st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
                 st.session_state.metadata = metadata
                 return metadata
                 
