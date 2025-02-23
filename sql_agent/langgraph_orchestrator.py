@@ -42,8 +42,8 @@ class SQLAgentOrchestrator:
         self,
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
-        similarity_threshold: float = 0.3,  # Lower threshold to catch more examples
-        max_examples: int = 5  # Increase max examples
+        similarity_threshold: float = 0.65,  # Higher threshold for more reliable matches
+        max_examples: int = 3  # Fewer but more relevant examples
     ):
         """Initialize the SQL Agent Orchestrator.
         
@@ -78,9 +78,10 @@ class SQLAgentOrchestrator:
         
         # Initialize text splitter for SQL
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
-            separators=["\n\n", "\n", " ", ""]
+            chunk_size=1500,  # Larger chunks to maintain SQL statement context
+            chunk_overlap=300,  # More overlap to avoid breaking statements
+            separators=[";", "\nGO\n", "\nBEGIN\n", "\nEND\n", "\n\n", "\n", " "],  # SQL-specific separators
+            length_function=len
         )
         
         # Setup processing chains
@@ -575,32 +576,25 @@ Validation Results:"""
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     
-                    # Split SQL into meaningful chunks
-                    sql_statements = [s.strip() for s in content.split(';') if s.strip()]
+                    # Split SQL into meaningful chunks using SQL-aware splitting
+                    chunks = self.text_splitter.split_text(content)
                     
-                    for stmt in sql_statements:
-                        # Only store non-trivial SQL statements
-                        if len(stmt.split()) > 5:  # More than 5 words
-                            texts.append(stmt)
+                    for chunk in chunks:
+                        # Only store non-trivial SQL chunks
+                        if len(chunk.split()) > 15:  # More substantial chunks
+                            # Clean and normalize the chunk
+                            cleaned_chunk = ' '.join(chunk.split())  # Normalize whitespace
+                            
+                            texts.append(cleaned_chunk)
                             metadatas.append({
                                 "source": file_path,
-                                "content": stmt,
-                                "type": "sql_statement"
+                                "content": cleaned_chunk,
+                                "type": "sql_chunk",
+                                "size": len(cleaned_chunk)
                             })
                             
-                            # Also store the statement with its surrounding context
-                            start_idx = content.find(stmt)
-                            if start_idx >= 0:
-                                context_start = max(0, start_idx - 200)
-                                context_end = min(len(content), start_idx + len(stmt) + 200)
-                                context = content[context_start:context_end]
-                                
-                                texts.append(context)
-                                metadatas.append({
-                                    "source": file_path,
-                                    "content": context,
-                                    "type": "sql_context"
-                                })
+                            # Log chunk details for debugging
+                            logger.debug(f"Added chunk from {file_path} with size {len(cleaned_chunk)}")
                     
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
