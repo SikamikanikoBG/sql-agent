@@ -206,6 +206,19 @@ Validation Results:"""
             with st.spinner("🔍 Searching vector store..."):
                 similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
             
+            # Always show similarity search results for inspection
+            st.markdown("### 🔍 Similarity Search Results")
+            if similar_examples:
+                for score, content in similar_examples:
+                    st.markdown(f"**Score: {score:.3f}**")
+                    if isinstance(content, dict):
+                        st.markdown(f"Source: `{content.get('source', 'Unknown')}`")
+                        st.code(content.get('content', ''), language="sql")
+                    else:
+                        st.code(str(content), language="sql")
+            else:
+                st.info("No examples found in vector store")
+
             # Check if we have any relevant examples
             max_similarity = max([score for score, _ in similar_examples]) if similar_examples else 0
             if max_similarity < self.similarity_threshold:
@@ -215,7 +228,7 @@ Validation Results:"""
                     similarity_search=similar_examples,
                     validation_result={},
                     relevant_files=[],
-                    error="⚠️ No similar SQL patterns found in the codebase. Please refine your query or add relevant SQL examples.",
+                    error="⚠️ No sufficiently similar SQL patterns found (threshold: {:.2f}). Showing all search results above for inspection.".format(self.similarity_threshold),
                     query_vector=query_vector,
                     metadata_vectors=metadata_vectors
                 ), self.usage_stats
@@ -588,25 +601,46 @@ Validation Results:"""
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                     
-                    # Split SQL into meaningful chunks using SQL-aware splitting
-                    chunks = self.text_splitter.split_text(content)
+                    # First split by major SQL statements
+                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
                     
-                    for chunk in chunks:
-                        # Only store non-trivial SQL chunks
-                        if len(chunk.split()) > 15:  # More substantial chunks
-                            # Clean and normalize the chunk
-                            cleaned_chunk = ' '.join(chunk.split())  # Normalize whitespace
+                    for i in range(1, len(statements), 2):
+                        if i+1 < len(statements):
+                            # Combine keyword with its statement
+                            full_stmt = statements[i] + statements[i+1]
                             
-                            texts.append(cleaned_chunk)
+                            # Only store non-trivial SQL statements
+                            if len(full_stmt.split()) > 10:  # Meaningful statements
+                            # Clean and normalize the statement
+                            cleaned_stmt = ' '.join(full_stmt.split())
+                            
+                            # Extract the main SQL operation type
+                            operation_type = statements[i].strip().upper()
+                            
+                            # Store both the full statement and key parts
+                            texts.append(cleaned_stmt)
                             metadatas.append({
                                 "source": file_path,
-                                "content": cleaned_chunk,
-                                "type": "sql_chunk",
-                                "size": len(cleaned_chunk)
+                                "content": cleaned_stmt,
+                                "type": "sql_statement",
+                                "operation": operation_type,
+                                "size": len(cleaned_stmt)
                             })
                             
-                            # Log chunk details for debugging
-                            logger.debug(f"Added chunk from {file_path} with size {len(cleaned_chunk)}")
+                            # For SELECT statements, also store the column list separately
+                            if operation_type == "SELECT":
+                                columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
+                                if columns_match:
+                                    columns_text = columns_match.group(1)
+                                    texts.append(columns_text)
+                                    metadatas.append({
+                                        "source": file_path,
+                                        "content": columns_text,
+                                        "type": "column_list",
+                                        "parent_statement": cleaned_stmt
+                                    })
+                            
+                            logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
                     
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
