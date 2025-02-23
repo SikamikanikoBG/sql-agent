@@ -159,13 +159,31 @@ class SimilaritySearchResultPlot:
             row=1, col=2
         )
         
-        # Add threshold line
-        fig.add_hline(
+        # Add threshold line as a shape
+        fig.add_shape(
+            type="line",
+            x0=0,
+            x1=len(self.labels)-1,
+            y0=self.similarity_threshold,
+            y1=self.similarity_threshold,
+            line=dict(
+                color="red",
+                width=2,
+                dash="dash",
+            ),
+            row=1,
+            col=2
+        )
+        
+        # Add threshold annotation
+        fig.add_annotation(
+            x=len(self.labels)-1,
             y=self.similarity_threshold,
-            line_dash="dash",
-            line_color="red",
-            annotation_text="Threshold",
-            row=1, col=2
+            text="Threshold",
+            showarrow=False,
+            yshift=10,
+            row=1,
+            col=2
         )
     
     def _add_dimension_heatmap(self, fig: go.Figure) -> None:
