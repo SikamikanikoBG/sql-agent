@@ -575,6 +575,7 @@ Validation Results:"""
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
+    @prevent_rerun(timeout=60)
     def initialize_vector_store(self, sql_files: List[str]) -> None:
         """Initialize the vector store with SQL examples.
         
