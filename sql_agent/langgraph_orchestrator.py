@@ -116,10 +116,10 @@ Intent Analysis:"""
         )
         self.intent_chain = self.intent_prompt | self.llm
         
-        # Query generation chain
+        # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
             input_variables=["intent", "metadata", "similar_examples"],
-            template="""Generate a SQL query based on the analyzed intent and database metadata:
+            template="""Generate a MS SQL query based on the analyzed intent and database metadata:
 
 Database Metadata:
 {metadata}
@@ -130,21 +130,28 @@ Similar Examples:
 Analyzed Intent:
 {intent}
 
-Consider:
-1. Use appropriate JOIN types based on requirements
-2. Include necessary table aliases
-3. Add proper WHERE clauses for filtering
-4. Include GROUP BY/ORDER BY if needed
-5. Follow SQL best practices
+Consider MS SQL best practices:
+1. Use appropriate JOIN types with proper NOLOCK hints where needed
+2. Include schema names and use square brackets for identifiers
+3. Add proper WHERE clauses with parameter sniffing consideration
+4. Include GROUP BY/ORDER BY with appropriate indexing hints
+5. Use appropriate MS SQL features:
+   - CTEs for complex queries
+   - OFFSET/FETCH for paging
+   - OUTPUT clause for DML operations
+   - Appropriate data type functions
+   - Proper NULL handling with ISNULL/COALESCE
+   - Table variables vs temp tables based on size
+   - Proper transaction isolation levels
 
 Generated SQL Query:"""
         )
         self.query_chain = self.query_prompt | self.llm
         
-        # Query validation chain
+        # Query validation chain for MS SQL
         self.validation_prompt = PromptTemplate(
             input_variables=["query", "metadata"],
-            template="""Validate the following SQL query against the database metadata:
+            template="""Validate the following MS SQL query against the database metadata:
 
 Database Metadata:
 {metadata}
@@ -153,11 +160,20 @@ SQL Query:
 {query}
 
 Check for:
-1. Table existence and relationships
-2. Column validity
-3. Syntax correctness
-4. Potential performance issues
+1. Table existence and relationships (including schema names)
+2. Column validity and data types
+3. MS SQL syntax correctness
+4. Performance considerations:
+   - Proper indexing hints
+   - JOIN optimization
+   - NOLOCK usage where appropriate
+   - Execution plan hints
 5. SQL injection risks
+6. MS SQL specific features:
+   - Proper use of square brackets for identifiers
+   - Schema qualification
+   - Appropriate collation settings
+   - Table hints and locking hints
 
 Validation Results:"""
         )
@@ -412,7 +428,7 @@ Validation Results:"""
             logger.info(f"Initialized vector store with {len(texts)} chunks")
     
     def extract_metadata(self, sql_content: str) -> List[str]:
-        """Extract metadata from SQL content including tables.
+        """Extract metadata from MS SQL content including tables.
         
         Args:
             sql_content: The SQL content to analyze
@@ -422,14 +438,26 @@ Validation Results:"""
         """
         try:
             tables = []
-            pattern = re.compile(r'CREATE\s+TABLE\s+([^\s(]+)', re.IGNORECASE)
+            # MS SQL specific patterns
+            patterns = [
+                # Standard CREATE TABLE
+                r'CREATE\s+TABLE\s+(\[?[\w\.\[\]]+\]?)',
+                # Temp tables
+                r'CREATE\s+TABLE\s+(#[\w\.\[\]]+)',
+                # Table variables
+                r'DECLARE\s+@[\w]+\s+TABLE',
+                # Common Table Expressions
+                r'WITH\s+(\[?[\w]+\]?)\s+AS'
+            ]
             
-            for match in pattern.finditer(sql_content):
-                table_name = match.group(1).strip()
-                if table_name:
-                    tables.append(table_name)
+            for pattern in patterns:
+                regex = re.compile(pattern, re.IGNORECASE)
+                for match in regex.finditer(sql_content):
+                    table_name = match.group(1).strip('[]')
+                    if table_name and not table_name.startswith('@'):
+                        tables.append(table_name)
             
-            return tables
+            return list(set(tables))
             
         except Exception as e:
             logger.error(f"Error extracting tables: {str(e)}", exc_info=True)
