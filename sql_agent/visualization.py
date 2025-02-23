@@ -149,8 +149,11 @@ class SimilaritySearchResultPlot:
             go.Bar(
                 x=self.labels,
                 y=self.similarities,
-                marker_color=self.similarities,
-                colorscale='Viridis',
+                marker=dict(
+                    color=self.similarities,
+                    colorscale='Viridis',
+                    showscale=True
+                ),
                 showlegend=False
             ),
             row=1, col=2
