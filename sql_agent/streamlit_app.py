@@ -1,185 +1,235 @@
 import streamlit as st
 import os
-import tempfile
-from typing import Dict, List
-import re
-import openai  # Import the openai module
-
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+from sql_agent.metadata_extractor import MetadataExtractor
+from sql_agent.visualization import SimilaritySearchResultPlot
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+class SQLAgentApp:
+    """Streamlit application for SQL query generation and analysis."""
+    
+    def __init__(self):
+        """Initialize the application components."""
+        self.agent = SQLAgentOrchestrator()
+        self.metadata_extractor = MetadataExtractor()
+        self._init_session_state()
+        
+    def _init_session_state(self):
+        """Initialize session state variables."""
+        if 'metadata' not in st.session_state:
+            st.session_state.metadata = None
+        if 'api_key_configured' not in st.session_state:
+            st.session_state.api_key_configured = False
+            
+    def setup_sidebar(self) -> bool:
+        """Configure the sidebar and check prerequisites.
+        
+        Returns:
+            Boolean indicating if setup was successful
+        """
+        st.sidebar.title("SQL Agent Configuration")
+        
+        # API Key Configuration
+        api_key = st.sidebar.text_input(
+            "OpenAI API Key",
+            value=os.getenv('OPENAI_API_KEY', ''),
+            type="password",
+            help="Enter your OpenAI API key to enable query generation"
+        )
+        
+        if api_key:
+            try:
+                openai.api_key = api_key
+                models = openai.models.list()
+                available_models = [model.id for model in models if "gpt" in model.id.lower()]
+                
+                st.sidebar.success("✅ OpenAI API connection successful")
+                st.sidebar.info(f"Available models: {', '.join(available_models)}")
+                st.session_state.api_key_configured = True
+                
+            except Exception as e:
+                st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
+                st.session_state.api_key_configured = False
+                return False
+        else:
+            st.sidebar.warning("⚠️ Please enter your OpenAI API key")
+            return False
+            
+        st.sidebar.markdown("---")
+        return True
+        
+    def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
+        """Load and process SQL metadata from the data folder.
+        
+        Args:
+            data_folder: Path to the SQL files directory
+            
+        Returns:
+            Processed metadata if successful, None otherwise
+        """
+        try:
+            data_path = Path(data_folder)
+            if not data_path.exists() or not data_path.is_dir():
+                st.error(f"❌ Data folder not found: {data_folder}")
+                return None
+                
+            sql_files = list(data_path.glob("*.sql"))
+            if not sql_files:
+                st.error("❌ No SQL files found in data folder")
+                return None
+                
+            with st.spinner("Loading SQL metadata..."):
+                metadata = self.metadata_extractor.extract_metadata_from_sql_files(
+                    [str(f) for f in sql_files]
+                )
+                
+                if not metadata:
+                    st.warning("⚠️ No metadata extracted from SQL files")
+                    return None
+                    
+                st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
+                self._display_metadata_stats(metadata)
+                return metadata
+                
+        except Exception as e:
+            logger.error(f"Error loading metadata: {str(e)}", exc_info=True)
+            st.error(f"❌ Error loading metadata: {str(e)}")
+            return None
+            
+    def _display_metadata_stats(self, metadata: Dict):
+        """Display metadata statistics in the sidebar."""
+        with st.sidebar.expander("📊 Knowledge Base Stats", expanded=True):
+            stats = metadata.get("statistics", {})
+            object_counts = stats.get("object_counts", {})
+            
+            st.markdown(f"""
+            - 📝 Tables: {object_counts.get('tables', 0)}
+            - 📊 Views: {object_counts.get('views', 0)}
+            - 🔧 Procedures: {object_counts.get('procedures', 0)}
+            - 🔗 Relationships: {stats.get('relationship_count', 0)}
+            - ⚠️ Errors: {stats.get('error_count', 0)}
+            """)
+            
+    def process_query(self, query: str, metadata: Dict) -> None:
+        """Process a natural language query and display results.
+        
+        Args:
+            query: User's natural language query
+            metadata: Database metadata
+        """
+        try:
+            with st.spinner("Generating SQL query..."):
+                results, usage_stats = self.agent.process_query(query, metadata)
+                
+            if "error" in results:
+                st.error(f"❌ Error: {results['error']}")
+                return
+                
+            self._display_query_results(results, usage_stats)
+            
+        except Exception as e:
+            logger.error(f"Error processing query: {str(e)}", exc_info=True)
+            st.error(f"❌ Error processing query: {str(e)}")
+            
+    def _display_query_results(self, results: Dict, usage_stats: Dict):
+        """Display query processing results and visualizations."""
+        # Display agent steps
+        st.markdown("### 🤖 Processing Steps")
+        for step_name, step_data in results.get("agent_interactions", {}).items():
+            with st.expander(f"Step: {step_name}", expanded=False):
+                st.code(step_data.get("system_prompt", ""), language="text")
+                st.code(step_data.get("user_prompt", ""), language="text")
+                st.code(step_data.get("result", ""), language="text")
+        
+        # Display similarity search results
+        if results.get("similarity_search"):
+            st.markdown("### 🔍 Similar SQL Patterns")
+            with st.expander("View Similar Patterns", expanded=False):
+                for score, content in results["similarity_search"]:
+                    st.markdown(f"**Similarity Score:** {score:.3f}")
+                    st.code(content, language="sql")
+        
+        # Display generated query
+        st.markdown("### 📝 Generated SQL Query")
+        if results.get("generated_query", "").startswith("ERROR:"):
+            st.error(results["generated_query"])
+        else:
+            st.code(results["generated_query"], language="sql")
+            
+            # Add copy button
+            if st.button("📋 Copy Query"):
+                st.code(results["generated_query"], language="sql")
+                st.success("Query copied to clipboard!")
+        
+        # Display usage statistics
+        with st.expander("📊 Usage Statistics", expanded=False):
+            tokens = usage_stats.get("tokens", {})
+            st.markdown(f"""
+            - Prompt Tokens: {tokens.get('prompt', 0):,}
+            - Completion Tokens: {tokens.get('completion', 0):,}
+            - Estimated Cost: ${usage_stats.get('cost', 0):.4f}
+            """)
+        
+        # Display any relevant file contents
+        if results.get("relevant_files"):
+            st.markdown("### 📑 Related SQL Files")
+            for file_path in results["relevant_files"]:
+                with st.expander(f"📄 {Path(file_path).name}", expanded=False):
+                    try:
+                        with open(file_path, 'r') as f:
+                            st.code(f.read(), language="sql")
+                    except Exception as e:
+                        st.error(f"Error reading file: {str(e)}")
 
 def main():
-    st.title("SQL Agent - Query Generation and Execution")
-    st.write("Enter your SQL-related prompt below to generate queries and analyze data.")
-
-    st.sidebar.markdown("### Configuration")
-    
-    # Get OpenAI API key
-    api_key = st.sidebar.text_input(
-        "OpenAI API Key",
-        value=os.getenv('OPENAI_API_KEY', ''),
-        type="password"
+    """Main application entry point."""
+    st.set_page_config(
+        page_title="SQL Agent",
+        page_icon="🤖",
+        layout="wide"
     )
-
-    # Check OpenAI API connectivity
-    if api_key:
-        try:
-            openai.api_key = api_key
-            models = openai.models.list()
-            st.sidebar.success("✅ OpenAI API connection successful")
-            available_models = [model.id for model in models if "gpt" in model.id.lower()]
-            st.sidebar.info(f"Available GPT models: {', '.join(available_models)}")
-        except Exception as e:
-            st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Operation Mode")
     
-    if not api_key:
-        st.warning("Please enter your OpenAI API key in the sidebar.")
+    st.title("🤖 SQL Agent - Query Generation and Analysis")
+    st.markdown("""
+    Enter your query in natural language, and I'll help you generate the appropriate SQL query.
+    Upload your SQL files to the data folder to enable context-aware query generation.
+    """)
+    
+    # Initialize application
+    app = SQLAgentApp()
+    
+    # Check prerequisites
+    if not app.setup_sidebar():
         return
-
-    # Initialize agent
-    agent = SQLAgentOrchestrator()
-
-    # Fixed data folder path
-    data_folder = "./sql_agent/data"
-
-    # Scan data folder and show stats in sidebar
-    if os.path.exists(data_folder) and os.path.isdir(data_folder):
-        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                    if f.endswith('.sql')]
         
-        st.sidebar.markdown("### Data Files Status")
-        if sql_files:
-            try:
-                metadata = extract_metadata_from_sql_files(sql_files)
-                if not metadata:
-                    st.sidebar.warning("⚠️ No metadata extracted from SQL files")
-                    return
-                st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
-                
-                st.sidebar.markdown("### Knowledge Base Stats")
-                st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
-                st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
-                st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
-                if 'procedure_info' in metadata:
-                    st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
-            except Exception as e:
-                st.sidebar.error(f"Error extracting metadata: {str(e)}")
-                return
-            
-        else:
-            st.sidebar.error("No SQL files found in knowledge base")
-            st.error("No SQL files found in the knowledge base")
-            return
-    else:
-        st.sidebar.error("Knowledge base folder not found")
-        st.error("Knowledge base folder not found")
+    # Load metadata
+    metadata = app.load_metadata()
+    if not metadata:
         return
-
-    # Query input section
-    user_query = st.text_area(
-        "Enter your natural language query:",
-        height=100
+        
+    # Query input
+    query = st.text_area(
+        "Enter your query in natural language:",
+        height=100,
+        help="Describe what you want to query from the database"
     )
-
-    if st.button("Generate Query"):
-            if not user_query.strip():
-                st.warning("Please enter a valid query or prompt.")
-                return
-
-            try:
-                # Use the already extracted metadata
-                sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                           if f.endswith('.sql')]
-                metadata = extract_metadata_from_sql_files(sql_files)
-
-                # Initialize agent steps display
-                st.markdown("### 🤖 SQL Agent Workflow")
-                steps = {
-                    "parse_intent": "1️⃣ Parse User Intent",
-                    "find_relevant_content": "2️⃣ Find Relevant Content",
-                    "generate_query": "3️⃣ Generate SQL Query",
-                    "validate_query": "4️⃣ Validate Query"
-                }
-                
-                # Process query and show each step
-                result, usage_stats = agent.process_query(user_query, metadata)
-                
-                # Display each agent's interaction
-                for step_name, step_data in result["agent_interactions"].items():
-                    with st.expander(f"🤖 {steps[step_name]}", expanded=True):
-                        st.markdown("**System Prompt:**")
-                        st.code(step_data["system_prompt"])
-                        st.markdown("**User Prompt:**")
-                        st.code(step_data["user_prompt"])
-                        st.markdown("**Result:**")
-                        st.code(step_data["result"])
-                
-                # Display final results
-                if result.get("similarity_search"):
-                    with st.expander("📊 Similarity Search Results"):
-                        st.markdown("### Top Matching Chunks:")
-                        for idx, (score, chunk) in enumerate(result["similarity_search"], 1):
-                            st.markdown(f"**Match {idx}** (Score: {score:.3f})")
-                            st.code(chunk, language="sql")
-                
-                # Display final query with formatting
-                st.markdown("### 📝 Final Generated Query")
-                if result["generated_query"].startswith('ERROR:'):
-                    error_msg = result["generated_query"].split('\n')
-                    st.error(error_msg[0])
-                    if metadata:
-                        with st.expander("Available Database Objects"):
-                            if metadata.get('tables'):
-                                st.markdown("**Tables:**")
-                                for table in metadata['tables']:
-                                    st.markdown(f"- `{table}`")
-                            if metadata.get('views'):
-                                st.markdown("**Views:**")
-                                for view in metadata['views']:
-                                    st.markdown(f"- `{view}`")
-                            if metadata.get('procedures'):
-                                st.markdown("**Procedures:**")
-                                for proc in metadata['procedures']:
-                                    st.markdown(f"- `{proc}`")
-                else:
-                    st.code(result["generated_query"], language="sql")
-                
-                # Show usage statistics
-                with st.expander("📊 Usage Statistics"):
-                    tokens = usage_stats["tokens"]
-                    st.info(
-                        f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"
-                        f"Cost: ${usage_stats['cost']:.2f} for this query"
-                    )
-
-                # Display error details if any
-                if result.get("available_objects"):
-                    with st.expander("Show available database objects"):
-                        st.text(result["available_objects"])
-
-                # Display relevant files content
-                if result.get("relevant_files"):
-                    st.markdown("### 📑 File Contents")
-                    relevant_files_content = []
-                    for file_path in result["relevant_files"]:
-                        try:
-                            with open(file_path, 'r') as f:
-                                relevant_files_content.append((os.path.basename(file_path), f.read()))
-                        except Exception as e:
-                            relevant_files_content.append((os.path.basename(file_path), f"Error reading file: {str(e)}"))
-                            
-                    for filename, content in relevant_files_content:
-                        with st.expander(f"📄 {filename}"):
-                            if content.startswith("Error"):
-                                st.error(content)
-                            else:
-                                st.code(content, language="sql")
-
-            except Exception as e:
-                st.error(f"Error processing query: {str(e)}")
-                st.exception(e)  # Show detailed error for debugging
+    
+    if st.button("🚀 Generate Query", disabled=not query):
+        if not query.strip():
+            st.warning("⚠️ Please enter a valid query")
+            return
+            
+        app.process_query(query, metadata)
 
 if __name__ == "__main__":
     main()
