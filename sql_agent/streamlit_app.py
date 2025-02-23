@@ -219,7 +219,7 @@ class SQLAgentApp:
             # Results area
             if 'last_query' in st.session_state:
                 # Query result tabs
-                query_tabs = st.tabs(["Generated SQL", "Explanation", "Sample Results"])
+                query_tabs = st.tabs(["Generated SQL", "Explanation", "Sample Results", "Agent Interactions"])
                 
                 with query_tabs[0]:
                     st.code(st.session_state.last_query, language="sql")
@@ -254,6 +254,65 @@ class SQLAgentApp:
                         st.dataframe(st.session_state.sample_results)
                     else:
                         st.info("No sample results available")
+
+                # Agent Interactions Tab
+                with query_tabs[3]:
+                    if 'last_result' in st.session_state:
+                        interactions = st.session_state.last_result.agent_interactions
+                        
+                        # Intent Analysis
+                        with st.expander("🎯 Intent Analysis", expanded=True):
+                            st.markdown("**System Prompt:**")
+                            st.code(interactions["parse_intent"]["system_prompt"], language="text")
+                            
+                            st.markdown("**User Query:**")
+                            st.code(interactions["parse_intent"]["user_prompt"], language="text")
+                            
+                            st.markdown("**Result:**")
+                            st.code(interactions["parse_intent"]["result"], language="text")
+                            
+                            st.markdown("**Tokens Used:**")
+                            st.code(str(interactions["parse_intent"]["tokens_used"]), language="text")
+                        
+                        # Query Generation
+                        with st.expander("🔨 Query Generation", expanded=True):
+                            st.markdown("**System Prompt:**")
+                            st.code(interactions["generate_query"]["system_prompt"], language="text")
+                            
+                            st.markdown("**Analyzed Intent:**")
+                            st.code(interactions["generate_query"]["user_prompt"], language="text")
+                            
+                            st.markdown("**Generated SQL:**")
+                            st.code(interactions["generate_query"]["result"], language="sql")
+                            
+                            st.markdown("**Tokens Used:**")
+                            st.code(str(interactions["generate_query"]["tokens_used"]), language="text")
+                        
+                        # Query Validation
+                        with st.expander("✅ Query Validation", expanded=True):
+                            st.markdown("**System Prompt:**")
+                            st.code(interactions["validate_query"]["system_prompt"], language="text")
+                            
+                            st.markdown("**SQL to Validate:**")
+                            st.code(interactions["validate_query"]["user_prompt"], language="sql")
+                            
+                            st.markdown("**Validation Result:**")
+                            st.code(interactions["validate_query"]["result"], language="text")
+                            
+                            st.markdown("**Tokens Used:**")
+                            st.code(str(interactions["validate_query"]["tokens_used"]), language="text")
+                        
+                        # Prompt Variables
+                        with st.expander("📝 Prompt Variables", expanded=True):
+                            if hasattr(st.session_state.last_result, 'similarity_search'):
+                                st.markdown("**Similar Examples Used:**")
+                                for i, (score, content) in enumerate(st.session_state.last_result.similarity_search, 1):
+                                    st.markdown(f"**Example {i} (Score: {score:.2f})**")
+                                    st.code(content, language="sql")
+                            
+                            if st.session_state.metadata:
+                                st.markdown("**Metadata Used:**")
+                                st.json(st.session_state.metadata)
         
         # Schema Browser Tab
         with tabs[1]:
