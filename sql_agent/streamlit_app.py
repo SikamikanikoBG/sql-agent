@@ -95,6 +95,11 @@ class SQLAgentApp:
                     return None
                     
                 st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
+            
+                # Add metadata inspection
+                with st.sidebar.expander("🔍 Inspect Full Metadata", expanded=False):
+                    st.json(metadata)
+                
                 self._display_metadata_stats(metadata)
                 return metadata
                 
@@ -124,6 +129,12 @@ class SQLAgentApp:
             query: User's natural language query
             metadata: Database metadata
         """
+        # Initialize vector store with examples if needed
+        if not hasattr(self.agent, 'vector_store') or self.agent.vector_store is None:
+            with st.spinner("Initializing knowledge base..."):
+                data_path = Path("./sql_agent/data")
+                sql_files = list(data_path.glob("*.sql"))
+                asyncio.run(self.agent.initialize_vector_store([str(f) for f in sql_files]))
         try:
             with st.spinner("Generating SQL query..."):
                 # Use asyncio to run the async function
@@ -173,10 +184,23 @@ class SQLAgentApp:
             
             # Display similar patterns
             if results.similarity_search:
-                with st.expander("View Similar Patterns", expanded=False):
+                with st.expander("🔍 Similar SQL Patterns", expanded=False):
+                    # Display raw examples
+                    st.markdown("#### Raw Examples")
                     for score, content in results.similarity_search:
-                        st.markdown(f"**Similarity Score:** {score:.3f}")
-                        st.code(content, language="sql")
+                        with st.expander(f"Example (Score: {score:.3f})", expanded=False):
+                            if isinstance(content, dict):
+                                st.markdown("**Source:**")
+                                st.markdown(f"`{content.get('source', 'Unknown')}`")
+                                st.markdown("**Content:**")
+                                st.code(content.get('content', ''), language="sql")
+                            else:
+                                st.code(str(content), language="sql")
+                    
+                    # Visualize similarities
+                    st.markdown("#### Similarity Analysis")
+                    scores = [score for score, _ in results.similarity_search]
+                    st.bar_chart(scores)
         
         # Display generated query
         st.markdown("### 📝 Generated SQL Query")
