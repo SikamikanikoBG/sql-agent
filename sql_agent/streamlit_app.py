@@ -304,22 +304,22 @@ class SQLAgentApp:
     async def process_query(self, query: str, metadata: Dict) -> None:
         try:
             st.session_state.processing = True
-                try:
-                    # Get SQL files from the data directory
-                    data_folder = "./sql_agent/data"
-                    sql_files = list(Path(data_folder).glob("*.sql"))
-                    
-                    logger.info("Starting query processing...")
-                    results, usage_stats = await self.agent.process_query(query, metadata)
-                    logger.info("Query processing completed")
-                    
-                    if not results:
-                        st.error("No results returned from query processing")
-                        return
-                except Exception as e:
-                    logger.error(f"Error during query processing: {str(e)}", exc_info=True)
-                    st.error(f"Error generating query: {str(e)}")
+            try:
+                # Get SQL files from the data directory
+                data_folder = "./sql_agent/data"
+                sql_files = list(Path(data_folder).glob("*.sql"))
+                
+                logger.info("Starting query processing...")
+                results, usage_stats = await self.agent.process_query(query, metadata)
+                logger.info("Query processing completed")
+                
+                if not results:
+                    st.error("No results returned from query processing")
                     return
+            except Exception as e:
+                logger.error(f"Error during query processing: {str(e)}", exc_info=True)
+                st.error(f"Error generating query: {str(e)}")
+                return
                 
             if results.error:
                 st.error(f"❌ Error: {results.error}")
