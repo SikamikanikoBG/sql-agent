@@ -5,42 +5,82 @@
 
 .main-header {
     background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-    padding: 2rem;
+    padding: 1rem;
     border-radius: 10px;
     color: white;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.main-header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.main-header p {
+    font-size: 0.9rem;
+    margin: 0;
 }
 
 .query-input {
     background-color: white;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.query-input h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.query-input p {
+    font-size: 0.9rem;
+    margin: 0;
 }
 
 .metadata-card {
     background-color: white;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 10px;
     border-left: 4px solid #1e3c72;
-    margin: 1rem 0;
+    margin: 0.5rem 0;
+}
+
+.metadata-card h3 {
+    font-size: 1.1rem;
+    margin: 0;
 }
 
 .results-section {
     background-color: white;
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 10px;
-    margin-top: 2rem;
+    margin-top: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.results-section h3 {
+    font-size: 1.1rem;
+    margin: 0;
 }
 
 .stat-card {
     background: white;
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: 8px;
     text-align: center;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card h4 {
+    font-size: 0.9rem;
+    margin: 0 0 0.25rem 0;
+}
+
+.stat-card h2 {
+    font-size: 1.25rem;
+    margin: 0;
 }
 
 .generated-query {
