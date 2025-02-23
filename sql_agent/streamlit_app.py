@@ -334,11 +334,11 @@ def main():
     col1, col2, col3 = st.columns([2,1,2])
     with col2:
         if st.button("🚀 Generate SQL Query", type="primary", disabled=not query):
-        if not query.strip():
-            st.warning("⚠️ Please enter a valid query")
-            return
-            
-        app.process_query(query, metadata)
+            if not query.strip():
+                st.warning("⚠️ Please enter a valid query")
+                return
+                
+            app.process_query(query, metadata)
 
 if __name__ == "__main__":
     main()
