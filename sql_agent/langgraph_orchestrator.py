@@ -42,8 +42,8 @@ class SQLAgentOrchestrator:
         self,
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
-        similarity_threshold: float = 0.7,
-        max_examples: int = 3
+        similarity_threshold: float = 0.3,  # Lower threshold to catch more examples
+        max_examples: int = 5  # Increase max examples
     ):
         """Initialize the SQL Agent Orchestrator.
         
@@ -364,9 +364,15 @@ Validation Results:"""
                 logger.info(f"Content: {doc.page_content[:100]}...")  # First 100 chars
                 logger.info(f"Metadata: {doc.metadata}")
                 
-            # Convert scores to cosine similarity (0-1 range)
-            max_score = max(score for _, score in results) if results else 1
-            normalized_results = [(1 - (score/max_score), doc) for doc, score in results]
+            # Convert L2 distance to cosine similarity (0-1 range)
+            # FAISS returns L2 distance, smaller is better
+            max_distance = max(score for _, score in results) if results else 1
+            normalized_results = []
+            for score, doc in results:
+                # Convert L2 distance to similarity score (0-1)
+                similarity = 1 - (score / max_distance)
+                normalized_results.append((similarity, doc))
+                logger.info(f"Original L2 distance: {score}, Normalized similarity: {similarity}")
             
             logger.info("Normalized similarity scores:")
             for score, doc in normalized_results:
@@ -377,16 +383,18 @@ Validation Results:"""
             metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
             
             similar_examples = []
-            for score, doc in normalized_results:
-                logger.info(f"Checking score {score} against threshold {self.similarity_threshold}")
-                if score >= self.similarity_threshold:
+            for similarity, doc in normalized_results:
+                logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
+                # Always include top examples even if below threshold
+                if len(similar_examples) < 2 or similarity >= self.similarity_threshold:
                     example = {
                         'content': doc.page_content,
                         'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
                     }
-                    similar_examples.append((score, example))
+                    similar_examples.append((similarity, example))
+                    logger.info(f"Added example with similarity {similarity}")
                 else:
-                    logger.info(f"Skipping example with score {score} below threshold {self.similarity_threshold}")
+                    logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
             
             return similar_examples, query_vector, metadata_vectors
             
