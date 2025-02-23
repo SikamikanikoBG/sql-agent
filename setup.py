@@ -4,8 +4,11 @@ setup(
     name="sql_agent",
     version="0.1.0",
     description="An AI-powered SQL query generation and analysis tool",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Arsen",
+    author_email="arsen@example.com",
+    url="https://github.com/yourusername/sql-agent",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=[
         "streamlit>=1.29.0",
