@@ -93,7 +93,7 @@ class SQLAgentOrchestrator:
     def _setup_chains(self) -> None:
         """Set up LangChain processing chains."""
         # Intent parsing chain
-        intent_prompt = PromptTemplate(
+        self.intent_prompt = PromptTemplate(
             input_variables=["query", "metadata", "similar_examples"],
             template="""Based on the database metadata and similar examples below, analyze the user's query intent:
 
@@ -114,10 +114,10 @@ Identify:
 
 Intent Analysis:"""
         )
-        self.intent_chain = intent_prompt | self.llm
+        self.intent_chain = self.intent_prompt | self.llm
         
         # Query generation chain
-        query_prompt = PromptTemplate(
+        self.query_prompt = PromptTemplate(
             input_variables=["intent", "metadata", "similar_examples"],
             template="""Generate a SQL query based on the analyzed intent and database metadata:
 
@@ -139,10 +139,10 @@ Consider:
 
 Generated SQL Query:"""
         )
-        self.query_chain = query_prompt | self.llm
+        self.query_chain = self.query_prompt | self.llm
         
         # Query validation chain
-        validation_prompt = PromptTemplate(
+        self.validation_prompt = PromptTemplate(
             input_variables=["query", "metadata"],
             template="""Validate the following SQL query against the database metadata:
 
@@ -161,7 +161,7 @@ Check for:
 
 Validation Results:"""
         )
-        self.validation_chain = validation_prompt | self.llm
+        self.validation_chain = self.validation_prompt | self.llm
 
     async def process_query(self, query: str, metadata: Dict) -> Tuple[QueryResult, UsageStats]:
         """Process a user's natural language query and generate an SQL query.
@@ -215,19 +215,19 @@ Validation Results:"""
                 generated_query=query_result.content,
                 agent_interactions={
                     "parse_intent": {
-                        "system_prompt": intent_prompt.template,
+                        "system_prompt": self.intent_prompt.template,
                         "user_prompt": query,
                         "result": intent_result.content,
                         "tokens_used": intent_result.usage.total_tokens if hasattr(intent_result, 'usage') else 0
                     },
                     "generate_query": {
-                        "system_prompt": query_prompt.template,
+                        "system_prompt": self.query_prompt.template,
                         "user_prompt": intent_result.content,
                         "result": query_result.content,
                         "tokens_used": query_result.usage.total_tokens if hasattr(query_result, 'usage') else 0
                     },
                     "validate_query": {
-                        "system_prompt": validation_prompt.template,
+                        "system_prompt": self.validation_prompt.template,
                         "user_prompt": query_result.content,
                         "result": validation_result.content,
                         "tokens_used": validation_result.usage.total_tokens if hasattr(validation_result, 'usage') else 0
