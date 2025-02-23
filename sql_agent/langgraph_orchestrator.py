@@ -23,6 +23,8 @@ class QueryResult:
     validation_result: Dict[str, Any]
     relevant_files: List[str]
     error: Optional[str] = None
+    query_vector: Optional[List[float]] = None
+    metadata_vectors: Optional[List[List[float]]] = None
 
 @dataclass
 class UsageStats:
@@ -202,8 +204,8 @@ Validation Results:"""
             # Reset usage stats
             self.usage_stats = UsageStats()
             
-            # Find similar examples
-            similar_examples = await self._find_similar_examples(query)
+            # Find similar examples and get vectors
+            similar_examples, query_vector, metadata_vectors = await self._find_similar_examples(query)
             
             # Parse intent
             formatted_metadata = self._format_metadata(metadata)
@@ -265,6 +267,8 @@ Validation Results:"""
                     }
                 },
                 similarity_search=similar_examples,
+                query_vector=query_vector,
+                metadata_vectors=metadata_vectors,
                 validation_result=self._parse_validation_result(validation_result.content),
                 relevant_files=relevant_files
             )
@@ -282,25 +286,34 @@ Validation Results:"""
                 error=str(e)
             ), self.usage_stats
             
-    async def _find_similar_examples(self, query: str) -> List[Tuple[float, str]]:
+    async def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
         """Find similar SQL examples from the vector store.
         
         Args:
             query: The user's query to find similar examples for
             
         Returns:
-            List of (score, content) tuples
+            Tuple containing:
+            - List of (score, content) tuples
+            - Query vector
+            - List of metadata vectors
         """
         if not self.vector_store:
-            return []
+            return [], [], []
             
         results = self.vector_store.similarity_search_with_score(
             query,
             k=self.max_examples
         )
         
-        return [(score, doc.page_content) 
-                for doc, score in results if score >= self.similarity_threshold]
+        # Get embeddings
+        query_vector = self.embeddings.embed_query(query)
+        metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
+        
+        similar_examples = [(score, doc.page_content) 
+                          for doc, score in results if score >= self.similarity_threshold]
+                          
+        return similar_examples, query_vector, metadata_vectors
     
     def _format_metadata(self, metadata: Dict) -> str:
         """Format metadata for prompt templates.

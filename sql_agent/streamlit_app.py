@@ -173,6 +173,21 @@ class SQLAgentApp:
                 </div>
             """, unsafe_allow_html=True)
             
+            # Vector similarity visualization
+            if 'last_query' in st.session_state and hasattr(st.session_state, 'last_result'):
+                with st.expander("🔍 Vector Search Visualization", expanded=False):
+                    result = st.session_state.last_result
+                    if result.query_vector is not None and result.metadata_vectors:
+                        plot = SimilaritySearchResultPlot(
+                            query_vector=result.query_vector,
+                            metadata_vectors=result.metadata_vectors,
+                            labels=[f"Example {i+1}" for i in range(len(result.metadata_vectors))],
+                            similarity_threshold=0.7
+                        )
+                        st.plotly_chart(plot.create_visualization(), use_container_width=True)
+                    else:
+                        st.info("No vector similarity data available for visualization")
+            
             # Results area
             if 'last_query' in st.session_state:
                 # Query result tabs
@@ -278,6 +293,7 @@ class SQLAgentApp:
             
             # Store results for display
             st.session_state.last_query = results.generated_query
+            st.session_state.last_result = results
             st.session_state.last_explanation = explanation
             
             # Create sample results if available
