@@ -6,7 +6,7 @@ setup(
     description="An AI-powered SQL query generation and analysis tool",
     author="Arsen",
     author_email="arsen@example.com",
-    url="https://github.com/yourusername/sql-agent",
+    url="https://github.com/arsensokolov/sql-agent",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     packages=find_packages(),
