@@ -206,26 +206,26 @@ Validation Results:"""
             
             # Prepare result
             result = QueryResult(
-                generated_query=query_result,
+                generated_query=query_result.content,
                 agent_interactions={
                     "parse_intent": {
-                        "system_prompt": self.intent_chain.prompt.template,
+                        "system_prompt": "Intent Analysis",
                         "user_prompt": query,
-                        "result": intent_result
+                        "result": intent_result.content
                     },
                     "generate_query": {
-                        "system_prompt": self.query_chain.prompt.template,
-                        "user_prompt": intent_result,
-                        "result": query_result
+                        "system_prompt": "Query Generation",
+                        "user_prompt": intent_result.content,
+                        "result": query_result.content
                     },
                     "validate_query": {
-                        "system_prompt": self.validation_chain.prompt.template,
-                        "user_prompt": query_result,
-                        "result": validation_result
+                        "system_prompt": "Query Validation",
+                        "user_prompt": query_result.content,
+                        "result": validation_result.content
                     }
                 },
                 similarity_search=similar_examples,
-                validation_result=self._parse_validation_result(validation_result)
+                validation_result=self._parse_validation_result(validation_result.content)
             )
             
             return result, self.usage_stats
