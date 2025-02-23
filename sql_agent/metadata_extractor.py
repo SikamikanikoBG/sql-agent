@@ -24,10 +24,10 @@ class MetadataExtractor:
     def __init__(self):
         self._setup_logging()
         self.patterns = {
-            'table': re.compile(r'CREATE\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL),
-            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL),
-            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)\s*\((.*?)\)\s*(.*?)\$\$', re.IGNORECASE | re.DOTALL),
-            'column': re.compile(r'([^\s,]+)\s+([^\s,]+)(?:\s*,|\s*\))', re.IGNORECASE),
+            'table': re.compile(r'CREATE\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
             'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
         }
     
@@ -73,15 +73,21 @@ class MetadataExtractor:
             List of column definitions
         """
         columns = []
-        matches = self.patterns['column'].finditer(create_statement)
+        # Split on commas but ignore commas inside parentheses
+        parts = re.split(r',(?![^(]*\))', create_statement)
         
-        for match in matches:
-            name, data_type = match.groups()
-            columns.append({
-                'name': name.strip(),
-                'type': data_type.strip()
-            })
-            
+        for part in parts:
+            part = part.strip()
+            if part and not part.upper().startswith(('PRIMARY KEY', 'FOREIGN KEY', 'CONSTRAINT')):
+                match = self.patterns['column'].search(part)
+                if match:
+                    name, data_type = match.groups()
+                    columns.append({
+                        'name': name.strip(),
+                        'type': data_type.strip()
+                    })
+                    logger.debug(f"Extracted column: {name.strip()} ({data_type.strip()})")
+        
         return columns
     
     def _extract_foreign_keys(self, create_statement: str) -> List[Dict[str, str]]:
@@ -156,30 +162,44 @@ class MetadataExtractor:
             "schemas": {}
         }
         
+        logger.info(f"Processing SQL file: {file_path}")
+        
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
             
             # Extract tables
-            for match in self.patterns['table'].finditer(content):
+            table_matches = list(self.patterns['table'].finditer(content))
+            logger.info(f"Found {len(table_matches)} table definitions")
+            
+            for match in table_matches:
                 name, definition = match.groups()
-                columns = self._extract_table_columns(definition)
-                relationships = self._extract_foreign_keys(definition)
-                
                 clean_name = name.strip()
-                database_name = self._extract_database_name(content, clean_name)
+                logger.info(f"Processing table: {clean_name}")
                 
-                sql_object = SQLObject(
-                    type="table",
-                    name=clean_name,
-                    definition=definition.strip(),
-                    source_file=file_path,
-                    database=database_name,
-                    schema=columns
-                )
-                
-                file_metadata["objects"].append(vars(sql_object))
-                file_metadata["relationships"].extend(relationships)
-                file_metadata["schemas"][name.strip()] = columns
+                try:
+                    columns = self._extract_table_columns(definition)
+                    logger.info(f"Extracted {len(columns)} columns from {clean_name}")
+                    
+                    relationships = self._extract_foreign_keys(definition)
+                    logger.info(f"Extracted {len(relationships)} relationships from {clean_name}")
+                    
+                    database_name = self._extract_database_name(content, clean_name)
+                    
+                    sql_object = SQLObject(
+                        type="table",
+                        name=clean_name,
+                        definition=definition.strip(),
+                        source_file=file_path,
+                        database=database_name,
+                        schema=columns
+                    )
+                    
+                    file_metadata["objects"].append(vars(sql_object))
+                    file_metadata["relationships"].extend(relationships)
+                    file_metadata["schemas"][clean_name] = columns
+                    
+                except Exception as e:
+                    logger.error(f"Error processing table {clean_name}: {str(e)}", exc_info=True)
             
             # Extract views
             for match in self.patterns['view'].finditer(content):
