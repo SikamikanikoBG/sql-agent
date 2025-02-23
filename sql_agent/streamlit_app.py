@@ -110,7 +110,7 @@ class SQLAgentApp:
                 )
             
                 # Initialize vector store
-                await self.agent.initialize_vector_store([str(f) for f in sql_files])
+                self.agent.initialize_vector_store([str(f) for f in sql_files])
                 
                 if not metadata:
                     st.warning("⚠️ No metadata extracted")
