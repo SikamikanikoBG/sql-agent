@@ -183,7 +183,7 @@ class SQLAgentApp:
                 
                 thread = threading.Thread(target=run_async)
                 thread.start()
-                st.experimental_rerun()
+                st.rerun()
             
             right.markdown("""
                 <div style='padding: 8px 0 0 20px; color: #666;'>
