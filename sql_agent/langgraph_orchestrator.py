@@ -306,9 +306,10 @@ Validation Results:"""
         """
         sections = []
         
-        if metadata.get("tables"):
-            sections.append("Tables:")
-            for table in metadata["tables"]:
+        # Format permanent tables
+        if metadata.get("permanent_tables"):
+            sections.append("Permanent Tables:")
+            for table in metadata["permanent_tables"]:
                 if isinstance(table, dict):
                     table_name = table.get("name", "unknown")
                     database = table.get("database", "")
@@ -321,6 +322,18 @@ Validation Results:"""
                                 sections.append(f"  * {column['name']}: {column['type']}")
                 else:
                     sections.append(f"- {table}")
+
+        # Format temporary tables with their source tables
+        if metadata.get("temp_tables"):
+            sections.append("\nTemporary Tables:")
+            for temp_name, temp_info in metadata["temp_tables"].items():
+                sections.append(f"- {temp_name}")
+                sections.append("  Definition:")
+                sections.append(f"  {temp_info['definition']}")
+                if temp_info.get("source_tables"):
+                    sections.append("  Source Tables:")
+                    for source in temp_info["source_tables"]:
+                        sections.append(f"  * {source}")
         
         if metadata.get("views"):
             sections.append("\nViews:")
