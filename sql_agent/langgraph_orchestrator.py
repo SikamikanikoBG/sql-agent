@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import streamlit as st
 from pathlib import Path
 import json
+from sql_agent.utils.decorators import prevent_rerun
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
@@ -575,6 +576,7 @@ Validation Results:"""
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
+    @prevent_rerun(timeout=60)
     @prevent_rerun(timeout=60)
     def initialize_vector_store(self, sql_files: List[str]) -> None:
         """Initialize the vector store with SQL examples.
