@@ -1,6 +1,6 @@
 # SQL Agent
 
-An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language.
+An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language. Features both Streamlit and Gradio interfaces for maximum flexibility.
 
 ## Features
 
@@ -11,6 +11,9 @@ An AI-powered SQL query generation and analysis tool that helps you write MS SQL
 - 📈 Token usage and cost tracking
 - 🎯 Vector similarity search for relevant examples
 - 🧠 Advanced MS SQL Server features support
+- 🎨 Choice of user interfaces:
+  - Streamlit: Full-featured dashboard
+  - Gradio: Simple, elegant interface
 
 ## Installation
 
@@ -39,10 +42,17 @@ pip install -e .
 
 1. Add your SQL files to the `sql_agent/data` directory
 
-2. Run the Streamlit app:
-```bash
-streamlit run sql_agent/streamlit_app.py
-```
+2. Choose your preferred interface:
+
+   Streamlit Dashboard:
+   ```bash
+   streamlit run sql_agent/streamlit_app.py
+   ```
+
+   Gradio Interface:
+   ```bash
+   python sql_agent/gradio_app.py
+   ```
 
 3. Enter your natural language query and get the generated SQL
 
@@ -50,15 +60,31 @@ streamlit run sql_agent/streamlit_app.py
 
 Input:
 ```
-Your natural language query here
+Show me all orders from last month with total amount greater than $1000
 ```
 
 Output:
 ```sql
--- The agent will generate SQL based on your database structure
-SELECT column1, column2
-FROM your_table
-WHERE condition;
+-- Generated SQL based on your database schema
+SELECT 
+    o.OrderID,
+    o.OrderDate,
+    o.CustomerID,
+    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) as TotalAmount
+FROM 
+    Orders o
+    JOIN [Order Details] od ON o.OrderID = od.OrderID
+WHERE 
+    o.OrderDate >= DATEADD(month, -1, GETDATE())
+    AND o.OrderDate < GETDATE()
+GROUP BY 
+    o.OrderID,
+    o.OrderDate,
+    o.CustomerID
+HAVING 
+    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) > 1000
+ORDER BY 
+    o.OrderDate DESC;
 ```
 
 ## Architecture
@@ -70,6 +96,23 @@ WHERE condition;
 - 📚 Vector store for similar example retrieval
 - 🎯 MS SQL Server specific optimizations
 - 📊 Comprehensive metadata extraction
+- 🎨 Dual interface support:
+  - Streamlit for rich dashboard experience
+  - Gradio for simple, focused interaction
+
+## Interface Features
+
+### Streamlit Dashboard
+- 📊 Rich visualization of query results
+- 📈 Usage statistics dashboard
+- 🔍 Detailed metadata explorer
+- 📝 Query history tracking
+
+### Gradio Interface
+- 🚀 Quick query generation
+- 🎯 Simple, intuitive design
+- 📱 Mobile-friendly layout
+- 🔄 Real-time query processing
 
 ## Development
 
@@ -99,3 +142,9 @@ MIT License - see LICENSE file for details
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
+
+## Support
+
+- 📚 Documentation: Check the `docs/` directory
+- 🐛 Issues: Submit via GitHub Issues
+- 💬 Discussions: Use GitHub Discussions for questions
