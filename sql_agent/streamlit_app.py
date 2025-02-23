@@ -147,51 +147,40 @@ class SQLAgentApp:
         """Display query processing results and visualizations."""
         # Display agent steps
         st.markdown("### 🤖 Processing Steps")
-        for step_name, step_data in results.get("agent_interactions", {}).items():
+        for step_name, step_data in results.agent_interactions.items():
             with st.expander(f"Step: {step_name}", expanded=False):
-                st.code(step_data.get("system_prompt", ""), language="text")
-                st.code(step_data.get("user_prompt", ""), language="text")
-                st.code(step_data.get("result", ""), language="text")
+                st.code(step_data["system_prompt"], language="text")
+                st.code(step_data["user_prompt"], language="text")
+                st.code(step_data["result"], language="text")
         
         # Display similarity search results
-        if results.get("similarity_search"):
+        if results.similarity_search:
             st.markdown("### 🔍 Similar SQL Patterns")
             with st.expander("View Similar Patterns", expanded=False):
-                for score, content in results["similarity_search"]:
+                for score, content in results.similarity_search:
                     st.markdown(f"**Similarity Score:** {score:.3f}")
                     st.code(content, language="sql")
         
         # Display generated query
         st.markdown("### 📝 Generated SQL Query")
-        if results.get("generated_query", "").startswith("ERROR:"):
-            st.error(results["generated_query"])
+        if results.error:
+            st.error(f"Error: {results.error}")
         else:
-            st.code(results["generated_query"], language="sql")
+            st.code(results.generated_query, language="sql")
             
             # Add copy button
             if st.button("📋 Copy Query"):
-                st.code(results["generated_query"], language="sql")
+                st.code(results.generated_query, language="sql")
                 st.success("Query copied to clipboard!")
         
         # Display usage statistics
         with st.expander("📊 Usage Statistics", expanded=False):
-            tokens = usage_stats.get("tokens", {})
             st.markdown(f"""
-            - Prompt Tokens: {tokens.get('prompt', 0):,}
-            - Completion Tokens: {tokens.get('completion', 0):,}
-            - Estimated Cost: ${usage_stats.get('cost', 0):.4f}
+            - Prompt Tokens: {usage_stats.prompt_tokens:,}
+            - Completion Tokens: {usage_stats.completion_tokens:,}
+            - Total Tokens: {usage_stats.total_tokens:,}
+            - Estimated Cost: ${usage_stats.cost:.4f}
             """)
-        
-        # Display any relevant file contents
-        if results.get("relevant_files"):
-            st.markdown("### 📑 Related SQL Files")
-            for file_path in results["relevant_files"]:
-                with st.expander(f"📄 {Path(file_path).name}", expanded=False):
-                    try:
-                        with open(file_path, 'r') as f:
-                            st.code(f.read(), language="sql")
-                    except Exception as e:
-                        st.error(f"Error reading file: {str(e)}")
 
 def main():
     """Main application entry point."""
