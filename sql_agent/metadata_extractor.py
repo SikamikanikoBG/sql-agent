@@ -24,9 +24,9 @@ class MetadataExtractor:
     def __init__(self):
         self._setup_logging()
         self.patterns = {
-            'table': re.compile(r'CREATE\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
-            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
-            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'table': re.compile(r'CREATE\s+TABLE\s+(\[?[^\s(]+\]?)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(\[?[^\s(]+\]?)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+(\[?[^\s(]+\]?)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
             'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
             'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
         }
@@ -167,14 +167,18 @@ class MetadataExtractor:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
             
-            # Extract tables
-            table_matches = list(self.patterns['table'].finditer(content))
-            logger.info(f"Found {len(table_matches)} table definitions")
+            # Split content into statements
+            statements = re.split(r';(?=[^\)]*(?:\(|$))', content)
+            logger.info(f"Split content into {len(statements)} statements")
             
-            for match in table_matches:
-                name, definition = match.groups()
-                clean_name = name.strip()
-                logger.info(f"Processing table: {clean_name}")
+            # Extract tables
+            for statement in statements:
+                if 'CREATE TABLE' in statement.upper():
+                    match = self.patterns['table'].search(statement + ';')  # Add back the semicolon
+                    if match:
+                        name, definition = match.groups()
+                        clean_name = name.strip('[] \n\t')
+                        logger.info(f"Processing table: {clean_name}")
                 
                 try:
                     columns = self._extract_table_columns(definition)
@@ -202,19 +206,30 @@ class MetadataExtractor:
                     logger.error(f"Error processing table {clean_name}: {str(e)}", exc_info=True)
             
             # Extract views
-            for match in self.patterns['view'].finditer(content):
-                name, definition = match.groups()
-                sql_object = SQLObject(
-                    type="view",
-                    name=name.strip(),
-                    definition=definition.strip(),
-                    source_file=file_path
-                )
-                file_metadata["objects"].append(vars(sql_object))
+            for statement in statements:
+                if 'CREATE VIEW' in statement.upper():
+                    match = self.patterns['view'].search(statement + ';')
+                    if match:
+                        name, definition = match.groups()
+                        clean_name = name.strip('[] \n\t')
+                        logger.info(f"Processing view: {clean_name}")
+                        sql_object = SQLObject(
+                            type="view",
+                            name=clean_name,
+                            definition=definition.strip(),
+                            source_file=file_path
+                        )
+                        file_metadata["objects"].append(vars(sql_object))
             
             # Extract procedures
-            for match in self.patterns['procedure'].finditer(content):
-                name, params, body = match.groups()
+            for statement in statements:
+                if 'CREATE PROCEDURE' in statement.upper():
+                    match = self.patterns['procedure'].search(statement + ';')
+                    if not match:
+                        continue
+                    name, params, body = match.groups()
+                    clean_name = name.strip('[] \n\t')
+                    logger.info(f"Processing procedure: {clean_name}")
                 parameters = self._parse_procedure_parameters(params)
                 description = self._extract_procedure_description(body)
                 
