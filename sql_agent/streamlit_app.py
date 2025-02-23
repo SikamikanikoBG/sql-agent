@@ -3,6 +3,8 @@ import os
 import tempfile
 from typing import Dict, List
 import re
+import openai  # Import the openai module
+
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 
 def main():
