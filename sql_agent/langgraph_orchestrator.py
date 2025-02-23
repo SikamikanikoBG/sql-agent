@@ -230,27 +230,46 @@ Validation Results:"""
             # Parse intent
             formatted_metadata = self._format_metadata(metadata)
             formatted_examples = self._format_examples(similar_examples)
-            intent_result = await self.intent_chain.ainvoke({
-                "query": query,
-                "metadata": formatted_metadata,
-                "similar_examples": formatted_examples
-            })
-            self._update_usage_stats(intent_result)
+            
+            logger.info("Starting intent parsing...")
+            try:
+                intent_result = await self.intent_chain.ainvoke({
+                    "query": query,
+                    "metadata": formatted_metadata,
+                    "similar_examples": formatted_examples
+                })
+                logger.info("Intent parsing completed")
+                self._update_usage_stats(intent_result)
+            except Exception as e:
+                logger.error(f"Error during intent parsing: {str(e)}", exc_info=True)
+                raise
             
             # Generate query
-            query_result = await self.query_chain.ainvoke({
-                "intent": intent_result.content,
-                "metadata": formatted_metadata,
-                "similar_examples": formatted_examples
-            })
-            self._update_usage_stats(query_result)
+            logger.info("Starting query generation...")
+            try:
+                query_result = await self.query_chain.ainvoke({
+                    "intent": intent_result.content,
+                    "metadata": formatted_metadata,
+                    "similar_examples": formatted_examples
+                })
+                logger.info("Query generation completed")
+                self._update_usage_stats(query_result)
+            except Exception as e:
+                logger.error(f"Error during query generation: {str(e)}", exc_info=True)
+                raise
             
             # Validate generated query
-            validation_result = await self.validation_chain.ainvoke({
-                "query": query_result.content,
-                "metadata": formatted_metadata
-            })
-            self._update_usage_stats(validation_result)
+            logger.info("Starting query validation...")
+            try:
+                validation_result = await self.validation_chain.ainvoke({
+                    "query": query_result.content,
+                    "metadata": formatted_metadata
+                })
+                logger.info("Query validation completed")
+                self._update_usage_stats(validation_result)
+            except Exception as e:
+                logger.error(f"Error during query validation: {str(e)}", exc_info=True)
+                raise
 
             # Track relevant context
             relevant_files = []
