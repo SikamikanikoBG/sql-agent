@@ -259,7 +259,7 @@ Validation Results:"""
         if not self.vector_store:
             return []
             
-        results = await self.vector_store.asimilarity_search_with_score(
+        results = self.vector_store.similarity_search_with_score(
             query,
             k=self.max_examples
         )

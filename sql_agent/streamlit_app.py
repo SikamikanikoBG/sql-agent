@@ -129,7 +129,9 @@ class SQLAgentApp:
         """
         try:
             with st.spinner("Generating SQL query..."):
-                results, usage_stats = self.agent.process_query(query, metadata)
+                # Use asyncio to run the async function
+                import asyncio
+                results, usage_stats = asyncio.run(self.agent.process_query(query, metadata))
                 
             if "error" in results:
                 st.error(f"❌ Error: {results['error']}")
