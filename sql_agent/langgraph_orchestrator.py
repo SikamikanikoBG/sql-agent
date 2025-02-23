@@ -8,7 +8,7 @@ import json
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from langchain.schema.runnable import RunnableSequence
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -92,11 +92,9 @@ class SQLAgentOrchestrator:
     def _setup_chains(self) -> None:
         """Set up LangChain processing chains."""
         # Intent parsing chain
-        self.intent_chain = LLMChain(
-            llm=self.llm,
-            prompt=PromptTemplate(
-                input_variables=["query", "metadata", "similar_examples"],
-                template="""Based on the database metadata and similar examples below, analyze the user's query intent:
+        intent_prompt = PromptTemplate(
+            input_variables=["query", "metadata", "similar_examples"],
+            template="""Based on the database metadata and similar examples below, analyze the user's query intent:
 
 Database Metadata:
 {metadata}
@@ -114,15 +112,13 @@ Identify:
 4. Sorting or grouping requirements
 
 Intent Analysis:"""
-            )
         )
+        self.intent_chain = intent_prompt | self.llm
         
         # Query generation chain
-        self.query_chain = LLMChain(
-            llm=self.llm,
-            prompt=PromptTemplate(
-                input_variables=["intent", "metadata", "similar_examples"],
-                template="""Generate a SQL query based on the analyzed intent and database metadata:
+        query_prompt = PromptTemplate(
+            input_variables=["intent", "metadata", "similar_examples"],
+            template="""Generate a SQL query based on the analyzed intent and database metadata:
 
 Database Metadata:
 {metadata}
@@ -141,15 +137,13 @@ Consider:
 5. Follow SQL best practices
 
 Generated SQL Query:"""
-            )
         )
+        self.query_chain = query_prompt | self.llm
         
         # Query validation chain
-        self.validation_chain = LLMChain(
-            llm=self.llm,
-            prompt=PromptTemplate(
-                input_variables=["query", "metadata"],
-                template="""Validate the following SQL query against the database metadata:
+        validation_prompt = PromptTemplate(
+            input_variables=["query", "metadata"],
+            template="""Validate the following SQL query against the database metadata:
 
 Database Metadata:
 {metadata}
@@ -165,8 +159,8 @@ Check for:
 5. SQL injection risks
 
 Validation Results:"""
-            )
         )
+        self.validation_chain = validation_prompt | self.llm
 
     async def process_query(self, query: str, metadata: Dict) -> Tuple[QueryResult, UsageStats]:
         """Process a user's natural language query and generate an SQL query.
@@ -188,24 +182,24 @@ Validation Results:"""
             similar_examples = await self._find_similar_examples(query)
             
             # Parse intent
-            intent_result = await self.intent_chain.arun(
-                query=query,
-                metadata=self._format_metadata(metadata),
-                similar_examples=self._format_examples(similar_examples)
-            )
+            intent_result = await self.intent_chain.ainvoke({
+                "query": query,
+                "metadata": self._format_metadata(metadata),
+                "similar_examples": self._format_examples(similar_examples)
+            })
             
             # Generate query
-            query_result = await self.query_chain.arun(
-                intent=intent_result,
-                metadata=self._format_metadata(metadata),
-                similar_examples=self._format_examples(similar_examples)
-            )
+            query_result = await self.query_chain.ainvoke({
+                "intent": intent_result.content,
+                "metadata": self._format_metadata(metadata),
+                "similar_examples": self._format_examples(similar_examples)
+            })
             
             # Validate generated query
-            validation_result = await self.validation_chain.arun(
-                query=query_result,
-                metadata=self._format_metadata(metadata)
-            )
+            validation_result = await self.validation_chain.ainvoke({
+                "query": query_result.content,
+                "metadata": self._format_metadata(metadata)
+            })
             
             # Update usage stats
             self._update_usage_stats()
