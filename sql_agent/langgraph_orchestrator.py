@@ -206,10 +206,23 @@ Validation Results:"""
             with st.spinner("🔍 Searching vector store..."):
                 similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
             
+            # Check if we have any relevant examples
+            max_similarity = max([score for score, _ in similar_examples]) if similar_examples else 0
+            if max_similarity < self.similarity_threshold:
+                st.error("⚠️ No similar SQL patterns found in the codebase. Please refine your query or add relevant SQL examples.")
+                return QueryResult(
+                    generated_query="",
+                    agent_interactions={},
+                    similarity_search=similar_examples,
+                    validation_result={},
+                    relevant_files=[],
+                    error="No similar SQL patterns found in codebase",
+                    query_vector=query_vector,
+                    metadata_vectors=metadata_vectors
+                ), self.usage_stats
+            
             # Format similar examples for display
             with st.spinner("📝 Formatting examples..."):
-                if not similar_examples:
-                    st.warning("⚠️ No similar information found in the SQL codebase")
                 formatted_examples = []
             for score, content in similar_examples:
                 if isinstance(content, dict):
