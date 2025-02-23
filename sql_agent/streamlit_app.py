@@ -3,288 +3,272 @@ import os
 import logging
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 from sql_agent.metadata_extractor import MetadataExtractor
 from sql_agent.visualization import SimilaritySearchResultPlot
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SQLAgentApp:
     """Streamlit application for SQL query generation and analysis."""
     
     def __init__(self):
-        """Initialize the application components."""
         self.agent = SQLAgentOrchestrator()
         self.metadata_extractor = MetadataExtractor()
         self._init_session_state()
         
     def _init_session_state(self):
-        """Initialize session state variables."""
         if 'metadata' not in st.session_state:
             st.session_state.metadata = None
         if 'api_key_configured' not in st.session_state:
             st.session_state.api_key_configured = False
+        if 'show_schema' not in st.session_state:
+            st.session_state.show_schema = False
+        if 'current_tab' not in st.session_state:
+            st.session_state.current_tab = "Query Generator"
             
     def setup_sidebar(self) -> bool:
-        """Configure the sidebar and check prerequisites.
-        
-        Returns:
-            Boolean indicating if setup was successful
-        """
-        st.sidebar.title("SQL Agent Configuration")
-        
-        # API Key Configuration
-        api_key = st.sidebar.text_input(
-            "OpenAI API Key",
-            value=os.getenv('OPENAI_API_KEY', ''),
-            type="password",
-            help="Enter your OpenAI API key to enable query generation"
-        )
-        
-        if api_key:
-            try:
-                openai.api_key = api_key
-                openai.models.list()  # Test the connection
-                st.sidebar.success("✅ OpenAI API connection successful")
-                st.session_state.api_key_configured = True
-                
-            except Exception as e:
-                st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
-                st.session_state.api_key_configured = False
-                return False
-        else:
-            st.sidebar.warning("⚠️ Please enter your OpenAI API key")
-            return False
+        with st.sidebar:
+            st.image("https://raw.githubusercontent.com/microsoft/sql-server-samples/master/media/sql-server-logo.png", width=100)
+            st.title("SQL Agent Settings")
             
-        st.sidebar.markdown("---")
+            # Configuration section
+            with st.expander("🔑 API Configuration", expanded=not st.session_state.api_key_configured):
+                api_key = st.text_input(
+                    "OpenAI API Key",
+                    value=os.getenv('OPENAI_API_KEY', ''),
+                    type="password",
+                    help="Enter your OpenAI API key"
+                )
+                
+                if api_key:
+                    try:
+                        openai.api_key = api_key
+                        openai.models.list()
+                        st.success("✅ API Connected")
+                        st.session_state.api_key_configured = True
+                    except Exception as e:
+                        st.error(f"❌ API Error: {str(e)}")
+                        st.session_state.api_key_configured = False
+                        return False
+                else:
+                    st.warning("⚠️ API Key Required")
+                    return False
+            
+            # Model settings
+            with st.expander("⚙️ Model Settings", expanded=False):
+                st.selectbox(
+                    "Model",
+                    ["gpt-3.5-turbo", "gpt-4"],
+                    help="Select the OpenAI model to use"
+                )
+                st.slider(
+                    "Temperature",
+                    0.0, 1.0, 0.0, 0.1,
+                    help="Higher values make output more creative"
+                )
+            
+            # Database schema
+            with st.expander("📊 Database Schema", expanded=False):
+                if st.session_state.metadata:
+                    stats = st.session_state.metadata.get("statistics", {})
+                    st.metric("Tables", stats.get("object_counts", {}).get("tables", 0))
+                    st.metric("Views", stats.get("object_counts", {}).get("views", 0))
+                    st.metric("Procedures", stats.get("object_counts", {}).get("procedures", 0))
+                else:
+                    st.info("No schema loaded")
+            
+            # Utilities
+            with st.expander("🛠️ Developer Tools", expanded=False):
+                st.checkbox("Enable Debug Mode", help="Show detailed processing information")
+                st.checkbox("Show Raw SQL", help="Display raw SQL alongside formatted version")
+            
         return True
         
     def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
-        """Load and process SQL metadata from the data folder.
-        
-        Args:
-            data_folder: Path to the SQL files directory
-            
-        Returns:
-            Processed metadata if successful, None otherwise
-        """
         try:
             data_path = Path(data_folder)
-            if not data_path.exists() or not data_path.is_dir():
-                st.error(f"❌ Data folder not found: {data_folder}")
+            if not data_path.exists():
+                st.error("❌ Data folder not found")
                 return None
                 
             sql_files = list(data_path.glob("*.sql"))
             if not sql_files:
-                st.error("❌ No SQL files found in data folder")
+                st.error("❌ No SQL files found")
                 return None
                 
-            with st.spinner("Loading SQL metadata..."):
+            with st.spinner("Loading database schema..."):
                 metadata = self.metadata_extractor.extract_metadata_from_sql_files(
                     [str(f) for f in sql_files]
                 )
                 
                 if not metadata:
-                    st.warning("⚠️ No metadata extracted from SQL files")
+                    st.warning("⚠️ No metadata extracted")
                     return None
-                    
-                st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
-            
-                # Enhanced metadata display
-                st.markdown("""
-                    <div class="metadata-card">
-                        <h3>📚 Database Schema Overview</h3>
-                    </div>
-                """, unsafe_allow_html=True)
                 
-                col1, col2, col3, col4, col5 = st.columns(5)
-                stats = metadata.get("statistics", {})
-                object_counts = stats.get("object_counts", {})
-                
-                with col1:
-                    st.markdown("""
-                        <div class="stat-card">
-                            <h4>📝 Tables</h4>
-                            <h2>{}</h2>
-                        </div>
-                    """.format(object_counts.get('tables', 0)), unsafe_allow_html=True)
-                
-                with col2:
-                    st.markdown("""
-                        <div class="stat-card">
-                            <h4>📊 Views</h4>
-                            <h2>{}</h2>
-                        </div>
-                    """.format(object_counts.get('views', 0)), unsafe_allow_html=True)
-                
-                with col3:
-                    st.markdown("""
-                        <div class="stat-card">
-                            <h4>🔧 Procedures</h4>
-                            <h2>{}</h2>
-                        </div>
-                    """.format(object_counts.get('procedures', 0)), unsafe_allow_html=True)
-                
-                with col4:
-                    st.markdown("""
-                        <div class="stat-card">
-                            <h4>🔗 Relations</h4>
-                            <h2>{}</h2>
-                        </div>
-                    """.format(stats.get('relationship_count', 0)), unsafe_allow_html=True)
-                
-                with col5:
-                    st.markdown("""
-                        <div class="stat-card">
-                            <h4>⚠️ Errors</h4>
-                            <h2>{}</h2>
-                        </div>
-                    """.format(stats.get('error_count', 0)), unsafe_allow_html=True)
-                
-                with st.expander("🔍 Detailed Schema Information", expanded=False):
-                    st.json(metadata)
-                
+                st.success(f"📁 Loaded {len(sql_files)} SQL files")
+                st.session_state.metadata = metadata
                 return metadata
                 
         except Exception as e:
-            logger.error(f"Error loading metadata: {str(e)}", exc_info=True)
-            st.error(f"❌ Error loading metadata: {str(e)}")
+            logger.error(f"Error loading metadata: {str(e)}")
+            st.error(f"❌ Error: {str(e)}")
             return None
             
+    def render_main_interface(self):
+        # Top navigation
+        st.markdown("""
+            <style>
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 2px;
+                background-color: #f0f2f6;
+                padding: 10px 10px 0 10px;
+                border-radius: 4px 4px 0 0;
+            }
+            .stTabs [data-baseweb="tab"] {
+                height: 50px;
+                white-space: pre-wrap;
+                background-color: #fff;
+                border-radius: 4px 4px 0 0;
+                gap: 2px;
+                padding: 10px 20px;
+            }
+            .stTabs [aria-selected="true"] {
+                background-color: #e6f3ff;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+        
+        tabs = st.tabs(["🤖 Query Generator", "📚 Schema Browser", "📝 Query History"])
+        
+        # Query Generator Tab
+        with tabs[0]:
+            st.markdown("### 🔍 Natural Language to SQL")
+            
+            # Query input
+            query = st.text_area(
+                "Describe your query",
+                placeholder="Example: Show me all orders from last month with total amount greater than $1000",
+                height=100,
+                help="Be as specific as possible about what data you need"
+            )
+            
+            # Action buttons
+            button_container = st.container()
+            left, right = button_container.columns([1, 5])
+            if left.button("🚀 Generate", type="primary", disabled=not query):
+                if not query.strip():
+                    st.warning("⚠️ Please enter a query description")
+                    return
+                    
+                self.process_query(query, st.session_state.metadata)
+            
+            right.markdown("""
+                <div style='padding: 8px 0 0 20px; color: #666;'>
+                    Tips: Include details about filters, sorting, and specific columns you need
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Results area
+            if 'last_query' in st.session_state:
+                with st.expander("🔍 Query Details", expanded=True):
+                    st.code(st.session_state.last_query, language="sql")
+                    st.download_button(
+                        "💾 Download SQL",
+                        st.session_state.last_query,
+                        "query.sql",
+                        "text/plain"
+                    )
+        
+        # Schema Browser Tab
+        with tabs[1]:
+            st.markdown("### 📚 Database Schema Explorer")
+            
+            if not st.session_state.metadata:
+                st.info("Load SQL files to view schema")
+                return
+                
+            search = st.text_input("🔍 Search schema", placeholder="Table or column name...")
+            
+            # Display schema
+            metadata = st.session_state.metadata
+            for obj_type in ["tables", "views", "procedures"]:
+                if objects := metadata.get(obj_type, []):
+                    with st.expander(f"📑 {obj_type.title()}", expanded=True):
+                        for obj in objects:
+                            if not search or search.lower() in obj["name"].lower():
+                                st.markdown(f"**{obj['name']}**")
+                                if "definition" in obj:
+                                    st.code(obj["definition"], language="sql")
+                                if "schema" in obj:
+                                    for col in obj["schema"]:
+                                        st.markdown(f"- {col['name']}: {col['type']}")
+        
+        # Query History Tab
+        with tabs[2]:
+            st.markdown("### 📝 Query History")
+            
+            if 'query_history' not in st.session_state:
+                st.session_state.query_history = []
+            
+            for idx, (timestamp, query, sql) in enumerate(st.session_state.query_history):
+                with st.expander(f"Query {idx + 1} - {timestamp}", expanded=False):
+                    st.markdown("**Natural Language:**")
+                    st.markdown(query)
+                    st.markdown("**Generated SQL:**")
+                    st.code(sql, language="sql")
             
     def process_query(self, query: str, metadata: Dict) -> None:
-        """Process a natural language query and display results.
-        
-        Args:
-            query: User's natural language query
-            metadata: Database metadata
-        """
-        # Initialize vector store with examples if needed
-        if not hasattr(self.agent, 'vector_store') or self.agent.vector_store is None:
-            with st.spinner("Initializing knowledge base..."):
-                data_path = Path("./sql_agent/data")
-                sql_files = list(data_path.glob("*.sql"))
-                asyncio.run(self.agent.initialize_vector_store([str(f) for f in sql_files]))
         try:
-            with st.spinner("Generating SQL query..."):
-                results, usage_stats = asyncio.run(self.agent.process_query(query, metadata))
+            with st.spinner("🤖 Generating SQL query..."):
+                results, usage_stats = asyncio.run(
+                    self.agent.process_query(query, metadata)
+                )
                 
             if results.error:
                 st.error(f"❌ Error: {results.error}")
                 return
                 
-            self._display_query_results(results, usage_stats)
+            # Store query in history
+            if 'query_history' not in st.session_state:
+                st.session_state.query_history = []
+            
+            from datetime import datetime
+            st.session_state.query_history.append((
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                query,
+                results.generated_query
+            ))
+            
+            # Store last query for display
+            st.session_state.last_query = results.generated_query
+            
+            # Show results
+            st.markdown("### 📝 Generated SQL")
+            st.code(results.generated_query, language="sql")
+            
+            # Show explanation if enabled
+            if st.session_state.get('show_explanation', True):
+                with st.expander("🔍 Query Explanation", expanded=False):
+                    st.markdown(results.agent_interactions.get("parse_intent", {}).get("result", ""))
+            
+            # Show usage stats
+            with st.expander("📊 Usage Statistics", expanded=False):
+                st.markdown(f"""
+                - Tokens Used: {usage_stats.total_tokens:,}
+                - Estimated Cost: ${usage_stats.cost:.4f}
+                """)
             
         except Exception as e:
-            logger.error(f"Error processing query: {str(e)}", exc_info=True)
-            st.error(f"❌ Error processing query: {str(e)}")
-            
-    def _display_query_results(self, results, usage_stats):
-        """Display query processing results and visualizations."""
-        # Display agent steps
-        st.markdown("### 🤖 Processing Steps")
-        for step_name, step_data in results.agent_interactions.items():
-            with st.expander(f"Step: {step_name}", expanded=False):
-                st.markdown(f"**🤖 Agent Model:** {self.agent.model_name}")
-                st.markdown("**📝 System Prompt:**")
-                st.code(step_data["system_prompt"], language="text")
-                st.markdown("**📥 User Input:**")
-                st.code(step_data["user_prompt"], language="text")
-                st.markdown("**📤 Agent Response:**")
-                st.code(step_data["result"], language="text")
-                st.markdown(f"*🎯 Tokens used: {step_data['tokens_used']}*")
-        
-        # Display relevant context and similarity search results
-        if results.similarity_search or results.relevant_files:
-            st.markdown("### 🔍 Context and Similar Patterns")
-            
-            # Display relevant files
-            if results.relevant_files:
-                with st.expander("📁 Relevant Context Files", expanded=True):
-                    st.markdown("**Files used for context:**")
-                    for file in results.relevant_files:
-                        base_name = os.path.basename(file)
-                        with st.expander(f"📄 {base_name}", expanded=False):
-                            try:
-                                with open(file, 'r', encoding='utf-8') as f:
-                                    st.code(f.read(), language="sql")
-                            except Exception as e:
-                                st.error(f"Error reading file: {str(e)}")
-            
-            # Display vector store and similar patterns
-            if results.similarity_search:
-                with st.expander("🔍 Vector Store Results", expanded=False):
-                    st.markdown("#### 🧠 Knowledge Base")
-                    st.markdown(f"""
-                    - 🔤 Embedding Model: {type(self.agent.embeddings).__name__}
-                    - 📚 Vector Store: {type(self.agent.vector_store).__name__}
-                    - 🎯 Similarity Threshold: {self.agent.similarity_threshold}
-                    """)
-                    
-                    st.markdown("#### 📊 Similar Examples Used in Prompts")
-                    st.code(self.agent._format_examples(results.similarity_search), language="text")
-                    
-                    st.markdown("#### 🔍 Raw Vector Search Results")
-                    for score, content in results.similarity_search:
-                        with st.expander(f"Example (Score: {score:.3f})", expanded=False):
-                            if isinstance(content, dict):
-                                st.markdown("**Source:**")
-                                st.markdown(f"`{content.get('source', 'Unknown')}`")
-                                st.markdown("**Content:**")
-                                st.code(content.get('content', ''), language="sql")
-                            else:
-                                st.code(str(content), language="sql")
-                    
-                    st.markdown("#### 📈 Similarity Distribution")
-                    scores = [score for score, _ in results.similarity_search]
-                    st.bar_chart(scores)
-        
-        # Enhanced query results display
-        st.markdown("""
-            <div class="results-section">
-                <h3>📝 Generated SQL Query</h3>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if results.error:
-            st.error(f"Error: {results.error}")
-        else:
-            col1, col2 = st.columns([4,1])
-            with col1:
-                st.markdown('<div class="generated-query">', unsafe_allow_html=True)
-                st.code(results.generated_query, language="sql")
-                st.markdown('</div>', unsafe_allow_html=True)
-            
-            with col2:
-                if st.button("📋 Copy to Clipboard", type="secondary"):
-                    st.code(results.generated_query, language="sql")
-                    st.success("✅ Query copied!")
-                if st.button("💾 Save Query", type="secondary"):
-                    st.download_button(
-                        label="Download SQL",
-                        data=results.generated_query,
-                        file_name="generated_query.sql",
-                        mime="text/plain"
-                    )
-        
-        # Display usage statistics
-        with st.expander("📊 Usage Statistics", expanded=False):
-            st.markdown(f"""
-            - Prompt Tokens: {usage_stats.prompt_tokens:,}
-            - Completion Tokens: {usage_stats.completion_tokens:,}
-            - Total Tokens: {usage_stats.total_tokens:,}
-            - Estimated Cost: ${usage_stats.cost:.4f}
-            """)
+            logger.error(f"Error processing query: {str(e)}")
+            st.error(f"❌ Error: {str(e)}")
 
 def main():
-    """Main application entry point."""
+    # Page config
     st.set_page_config(
         page_title="SQL Agent",
         page_icon="🤖",
@@ -292,19 +276,32 @@ def main():
         initial_sidebar_state="expanded"
     )
     
-    # Load custom CSS
-    with open("sql_agent/static/style.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    
-    # Main header section
+    # Custom CSS
     st.markdown("""
-        <div class="main-header">
-            <h1>🤖 SQL Agent</h1>
-            <p>Your AI-powered SQL assistant for natural language query generation</p>
-        </div>
+        <style>
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .element-container {
+            margin-bottom: 1rem;
+        }
+        .stTextArea textarea {
+            font-family: 'Consolas', monospace;
+        }
+        code {
+            white-space: pre !important;
+        }
+        .sql-metadata {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        </style>
     """, unsafe_allow_html=True)
     
-    # Initialize application
+    # Initialize app
     app = SQLAgentApp()
     
     # Check prerequisites
@@ -316,29 +313,8 @@ def main():
     if not metadata:
         return
         
-    # Enhanced query input section
-    st.markdown("""
-        <div class="query-input">
-            <h3>🔍 What would you like to query?</h3>
-            <p>Describe your query in natural language, and I'll help you generate the SQL.</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    query = st.text_area(
-        "",
-        placeholder="Example: Show me all customers who made purchases last month...",
-        height=100,
-        help="Be as specific as possible for better results"
-    )
-    
-    col1, col2, col3 = st.columns([2,1,2])
-    with col2:
-        if st.button("🚀 Generate SQL Query", type="primary", disabled=not query):
-            if not query.strip():
-                st.warning("⚠️ Please enter a valid query")
-                return
-                
-            app.process_query(query, metadata)
+    # Render main interface
+    app.render_main_interface()
 
 if __name__ == "__main__":
     main()
