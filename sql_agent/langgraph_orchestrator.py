@@ -604,21 +604,21 @@ Validation Results:"""
                                 # Clean and normalize the statement
                                 cleaned_stmt = ' '.join(full_stmt.split())
                             
-                            # Extract the main SQL operation type
-                            operation_type = statements[i].strip().upper()
+                                # Extract the main SQL operation type
+                                operation_type = statements[i].strip().upper()
                             
-                            # Store both the full statement and key parts
-                            texts.append(cleaned_stmt)
-                            metadatas.append({
-                                "source": file_path,
-                                "content": cleaned_stmt,
-                                "type": "sql_statement",
-                                "operation": operation_type,
-                                "size": len(cleaned_stmt)
-                            })
-                            
-                            # For SELECT statements, also store the column list separately
-                            if operation_type == "SELECT":
+                                # Store both the full statement and key parts
+                                texts.append(cleaned_stmt)
+                                metadatas.append({
+                                    "source": file_path,
+                                    "content": cleaned_stmt,
+                                    "type": "sql_statement",
+                                    "operation": operation_type,
+                                    "size": len(cleaned_stmt)
+                                })
+                                
+                                # For SELECT statements, also store the column list separately
+                                if operation_type == "SELECT":
                                 columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
                                 if columns_match:
                                     columns_text = columns_match.group(1)
