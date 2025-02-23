@@ -50,11 +50,8 @@ class SQLAgentApp:
         if api_key:
             try:
                 openai.api_key = api_key
-                models = openai.models.list()
-                available_models = [model.id for model in models if "gpt" in model.id.lower()]
-                
+                openai.models.list()  # Test the connection
                 st.sidebar.success("✅ OpenAI API connection successful")
-                st.sidebar.info(f"Available models: {', '.join(available_models)}")
                 st.session_state.api_key_configured = True
                 
             except Exception as e:
