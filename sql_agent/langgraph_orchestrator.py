@@ -144,6 +144,13 @@ Consider MS SQL best practices:
    - Table variables vs temp tables based on size
    - Proper transaction isolation levels
 
+Important Notes for Temporary Tables:
+1. If you need data from a temporary table (#temp), look at its source tables in the metadata
+2. You can either:
+   a) Use the source tables directly with appropriate JOINs and conditions
+   b) Recreate the temporary table using its definition from metadata
+3. Choose the approach that best matches the original query's intent and performance needs
+
 Generated SQL Query:"""
         )
         self.query_chain = self.query_prompt | self.llm
