@@ -235,12 +235,17 @@ Validation Results:"""
                 formatted_metadata = self._format_metadata(metadata)
                 formatted_examples = self._format_examples(similar_examples)
                 
+                logger.info(f"Using {len(similar_examples)} similar examples in prompt")
+                for i, (score, example) in enumerate(similar_examples):
+                    logger.info(f"Example {i+1} (score: {score:.2f}):")
+                    logger.info(f"Content: {example.get('content', '')[:200]}...")
+                
                 logger.info("Starting intent parsing...")
             try:
                 intent_result = self.intent_chain.invoke({
                     "query": query,
                     "metadata": formatted_metadata,
-                    "similar_examples": formatted_examples
+                    "similar_examples": formatted_examples if similar_examples else "No relevant examples found."
                 })
                 logger.info("Intent parsing completed")
                 self._update_usage_stats(intent_result)
@@ -255,7 +260,7 @@ Validation Results:"""
                 query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
                     "metadata": formatted_metadata,
-                    "similar_examples": formatted_examples
+                    "similar_examples": formatted_examples if similar_examples else "No relevant examples found."
                 })
                 logger.info("Query generation completed")
                 self._update_usage_stats(query_result)
@@ -462,20 +467,22 @@ Validation Results:"""
         if not examples:
             return "No similar examples found."
             
-        sections = []
+        sections = ["Similar SQL examples found:"]
         for i, (score, content) in enumerate(examples, 1):
             if isinstance(content, dict):
                 sections.extend([
-                    f"Example {i} (Similarity: {score:.2f}):",
+                    f"\nExample {i} (Similarity: {score:.2f}):",
                     f"Source: {content.get('source', 'Unknown')}",
+                    "SQL:",
                     content.get('content', ''),
-                    ""
+                    "-" * 80  # Separator
                 ])
             else:
                 sections.extend([
-                    f"Example {i} (Similarity: {score:.2f}):",
+                    f"\nExample {i} (Similarity: {score:.2f}):",
+                    "SQL:",
                     str(content),
-                    ""
+                    "-" * 80  # Separator
                 ])
         
         return "\n".join(sections)
