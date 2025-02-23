@@ -24,9 +24,9 @@ class MetadataExtractor:
     def __init__(self):
         self._setup_logging()
         self.patterns = {
-            'table': re.compile(r'CREATE\s+TABLE\s+(?:\[?[\w\[\]\.]+\]?\.)?(\[?[\w\[\]\.]+\]?)\s*\((.*?)\)\s*(?:;|$)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
-            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:\[?[\w\[\]\.]+\]?\.)?(\[?[\w\[\]\.]+\]?)\s+AS\s+(.*?)(?:;|$)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
-            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+(?:\[?[\w\[\]\.]+\]?\.)?(\[?[\w\[\]\.]+\]?)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;|$)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'table': re.compile(r'CREATE\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL),
+            'view': re.compile(r'CREATE\s+VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL),
+            'procedure': re.compile(r'CREATE\s+PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?);', re.IGNORECASE | re.DOTALL),
             'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
             'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
         }
@@ -167,53 +167,19 @@ class MetadataExtractor:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
             
-            # Split content into statements more carefully
-            statements = []
-            current_statement = []
-            in_parens = 0
-            in_string = False
-            string_char = None
-            
-            for line in content.splitlines():
-                line = line.strip()
-                if not line or line.startswith('--'):
-                    continue
-                    
-                for i, char in enumerate(line):
-                    if char in ["'", '"'] and (i == 0 or line[i-1] != '\\'):
-                        if not in_string:
-                            in_string = True
-                            string_char = char
-                        elif string_char == char:
-                            in_string = False
-                    elif char == '(' and not in_string:
-                        in_parens += 1
-                    elif char == ')' and not in_string:
-                        in_parens -= 1
-                    elif char == ';' and in_parens == 0 and not in_string:
-                        current_statement.append(line[:i+1])
-                        statements.append(''.join(current_statement))
-                        current_statement = []
-                        break
-                else:
-                    current_statement.append(line)
-            
-            if current_statement:
-                statements.append(''.join(current_statement))
-                
-            logger.info(f"Split content into {len(statements)} statements")
+            # Remove comments and split into statements
+            content = re.sub(r'--.*$', '', content, flags=re.MULTILINE)
+            content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+            statements = [s.strip() for s in content.split(';') if s.strip()]
+            logger.info(f"Found {len(statements)} SQL statements in {file_path}")
             
             # Extract tables
             for statement in statements:
                 if 'CREATE TABLE' in statement.upper():
                     try:
-                        # Clean up the statement
-                        clean_statement = ' '.join(
-                            line.strip() 
-                            for line in statement.splitlines() 
-                            if line.strip() and not line.strip().startswith('--')
-                        )
-                        match = self.patterns['table'].search(clean_statement)
+                        # Add back semicolon for pattern matching
+                        statement = statement.strip() + ';'
+                        match = self.patterns['table'].search(statement)
                         if match:
                             name, definition = match.groups()
                             clean_name = name.strip('[] \n\t')
