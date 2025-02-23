@@ -234,19 +234,19 @@ Validation Results:"""
                         "system_prompt": self.intent_prompt.template,
                         "user_prompt": query,
                         "result": intent_result.content,
-                        "tokens_used": intent_result.usage.total_tokens if hasattr(intent_result, 'usage') else 0
+                        "tokens_used": intent_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(intent_result, 'generation_info') else 0
                     },
                     "generate_query": {
                         "system_prompt": self.query_prompt.template,
                         "user_prompt": intent_result.content,
                         "result": query_result.content,
-                        "tokens_used": query_result.usage.total_tokens if hasattr(query_result, 'usage') else 0
+                        "tokens_used": query_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(query_result, 'generation_info') else 0
                     },
                     "validate_query": {
                         "system_prompt": self.validation_prompt.template,
                         "user_prompt": query_result.content,
                         "result": validation_result.content,
-                        "tokens_used": validation_result.usage.total_tokens if hasattr(validation_result, 'usage') else 0
+                        "tokens_used": validation_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(validation_result, 'generation_info') else 0
                     }
                 },
                 similarity_search=similar_examples,
@@ -374,11 +374,11 @@ Validation Results:"""
     def _update_usage_stats(self, response) -> None:
         """Update usage statistics from LLM interactions."""
         try:
-            # Extract usage from the response
-            usage = response.usage
-            if usage:
-                self.usage_stats.prompt_tokens += usage.prompt_tokens
-                self.usage_stats.completion_tokens += usage.completion_tokens
+            # Extract usage from the generation info
+            if hasattr(response, 'generation_info'):
+                usage = response.generation_info.get('token_usage', {})
+                self.usage_stats.prompt_tokens += usage.get('prompt_tokens', 0)
+                self.usage_stats.completion_tokens += usage.get('completion_tokens', 0)
                 self.usage_stats.total_tokens = (
                     self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
                 )
