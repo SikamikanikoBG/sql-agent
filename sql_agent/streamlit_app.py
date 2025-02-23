@@ -120,11 +120,6 @@ class SQLAgentApp:
     def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
         """Just return the already loaded metadata"""
         return st.session_state.metadata
-                
-        except Exception as e:
-            logger.error(f"Error loading metadata: {str(e)}")
-            st.error(f"❌ Error: {str(e)}")
-            return None
             
     def render_main_interface(self):
         # Show processing indicator
