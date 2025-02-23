@@ -173,8 +173,25 @@ class SQLAgentApp:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Vector similarity visualization
+            # Similar code snippets
             if 'last_query' in st.session_state and hasattr(st.session_state, 'last_result'):
+                with st.expander("📚 Similar Code Snippets", expanded=False):
+                    if hasattr(st.session_state.last_result, 'similarity_search'):
+                        similar_examples = st.session_state.last_result.similarity_search
+                        if similar_examples:
+                            for i, example in enumerate(similar_examples, 1):
+                                if isinstance(example, dict):
+                                    st.markdown(f"**Example {i} (Similarity: {example['score']:.2f})**")
+                                    st.markdown(f"Source: `{example['source']}`")
+                                    st.code(example['content'], language="sql")
+                                else:
+                                    score, content = example
+                                    st.markdown(f"**Example {i} (Similarity: {score:.2f})**")
+                                    st.code(content, language="sql")
+                        else:
+                            st.info("No similar code snippets found")
+                
+                # Vector similarity visualization
                 with st.expander("🔍 Vector Search Visualization", expanded=False):
                     result = st.session_state.last_result
                     if result.query_vector is not None and result.metadata_vectors:
@@ -269,8 +286,16 @@ class SQLAgentApp:
     def process_query(self, query: str, metadata: Dict) -> None:
         try:
             with st.spinner("🤖 Generating SQL query..."):
+                # Get SQL files from the data directory
+                data_folder = "./sql_agent/data"
+                sql_files = list(Path(data_folder).glob("*.sql"))
+                
                 results, usage_stats = asyncio.run(
-                    self.agent.process_query(query, metadata)
+                    self.agent.process_query(
+                        query=query,
+                        metadata=metadata,
+                        sql_files=[str(f) for f in sql_files]
+                    )
                 )
                 
             if results.error:

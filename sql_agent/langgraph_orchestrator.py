@@ -188,7 +188,7 @@ Validation Results:"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
-    async def process_query(self, query: str, metadata: Dict) -> Tuple[QueryResult, UsageStats]:
+    async def process_query(self, query: str, metadata: Dict, sql_files: Optional[List[str]] = None) -> Tuple[QueryResult, UsageStats]:
         """Process a user's natural language query and generate an SQL query.
         
         Args:
@@ -204,8 +204,28 @@ Validation Results:"""
             # Reset usage stats
             self.usage_stats = UsageStats()
             
+            # Initialize vector store if needed
+            if sql_files and not self.vector_store:
+                await self.initialize_vector_store(sql_files)
+            
             # Find similar examples and get vectors
             similar_examples, query_vector, metadata_vectors = await self._find_similar_examples(query)
+            
+            # Format similar examples for display
+            formatted_examples = []
+            for score, content in similar_examples:
+                if isinstance(content, dict):
+                    formatted_examples.append({
+                        "score": float(score),
+                        "content": content.get("content", ""),
+                        "source": content.get("source", "Unknown")
+                    })
+                else:
+                    formatted_examples.append({
+                        "score": float(score),
+                        "content": str(content),
+                        "source": "Unknown"
+                    })
             
             # Parse intent
             formatted_metadata = self._format_metadata(metadata)
