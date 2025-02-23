@@ -164,9 +164,15 @@ class SQLAgentApp:
             # Display relevant files
             if results.relevant_files:
                 with st.expander("📁 Relevant Context Files", expanded=True):
-                    st.markdown("Files used for context:")
+                    st.markdown("**Files used for context:**")
                     for file in results.relevant_files:
-                        st.markdown(f"- `{file}`")
+                        base_name = os.path.basename(file)
+                        with st.expander(f"📄 {base_name}", expanded=False):
+                            try:
+                                with open(file, 'r', encoding='utf-8') as f:
+                                    st.code(f.read(), language="sql")
+                            except Exception as e:
+                                st.error(f"Error reading file: {str(e)}")
             
             # Display similar patterns
             if results.similarity_search:

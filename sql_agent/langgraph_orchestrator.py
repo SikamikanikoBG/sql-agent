@@ -224,7 +224,15 @@ Validation Results:"""
             self._update_usage_stats(validation_result)
 
             # Track relevant context
-            relevant_files = [meta["source"] for score, meta in similar_examples if score > self.similarity_threshold]
+            relevant_files = []
+            for score, content in similar_examples:
+                if isinstance(content, dict) and "source" in content:
+                    if score > self.similarity_threshold:
+                        relevant_files.append(content["source"])
+                elif isinstance(content, str) and hasattr(content, "metadata"):
+                    metadata = getattr(content, "metadata", {})
+                    if metadata.get("source") and score > self.similarity_threshold:
+                        relevant_files.append(metadata["source"])
             
             # Prepare result
             result = QueryResult(
@@ -374,17 +382,30 @@ Validation Results:"""
     def _update_usage_stats(self, response) -> None:
         """Update usage statistics from LLM interactions."""
         try:
-            # Extract usage from the generation info
+            # Try different ways to get token usage
+            usage = None
+            
+            # Try getting from generation_info
             if hasattr(response, 'generation_info'):
                 usage = response.generation_info.get('token_usage', {})
-                self.usage_stats.prompt_tokens += usage.get('prompt_tokens', 0)
-                self.usage_stats.completion_tokens += usage.get('completion_tokens', 0)
+            
+            # Try getting from response.usage directly
+            elif hasattr(response, 'usage'):
+                usage = response.usage
+            
+            # Try getting from AIMessage additional_kwargs
+            elif hasattr(response, 'additional_kwargs'):
+                usage = response.additional_kwargs.get('token_usage', {})
+            
+            if usage:
+                # Update token counts
+                self.usage_stats.prompt_tokens += int(usage.get('prompt_tokens', 0))
+                self.usage_stats.completion_tokens += int(usage.get('completion_tokens', 0))
                 self.usage_stats.total_tokens = (
                     self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
                 )
                 
                 # Calculate approximate cost
-                # Adjust rates based on your model
                 prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
                 completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
                 
@@ -392,6 +413,10 @@ Validation Results:"""
                     self.usage_stats.prompt_tokens * prompt_rate / 1000 +
                     self.usage_stats.completion_tokens * completion_rate / 1000
                 )
+                
+                logger.info(f"Updated usage stats - Prompt: {self.usage_stats.prompt_tokens}, "
+                          f"Completion: {self.usage_stats.completion_tokens}, "
+                          f"Total: {self.usage_stats.total_tokens}")
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
