@@ -288,10 +288,14 @@ Validation Results:"""
         
         if metadata.get("relationships"):
             sections.append("\nRelationships:")
-            for rel in metadata["relationships"]:
+            for rel in metadata.get("relationships", []):
+                source_table = rel.get("source_table", "unknown")
+                target_table = rel.get("target_table", "unknown")
+                source_cols = rel.get("source_columns", ["unknown"])
+                target_cols = rel.get("target_columns", ["unknown"])
                 sections.append(
-                    f"- {rel['source_table']}.{','.join(rel['source_columns'])} -> "
-                    f"{rel['target_table']}.{','.join(rel['target_columns'])}"
+                    f"- {source_table}.{','.join(source_cols)} -> "
+                    f"{target_table}.{','.join(target_cols)}"
                 )
         
         return "\n".join(sections)
