@@ -349,8 +349,14 @@ Validation Results:"""
         query_vector = self.embeddings.embed_query(query)
         metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
         
-        similar_examples = [(score, doc.page_content) 
-                          for doc, score in results if score >= self.similarity_threshold]
+        similar_examples = []
+        for doc, score in results:
+            if score >= self.similarity_threshold:
+                example = {
+                    'content': doc.page_content,
+                    'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
+                }
+                similar_examples.append((score, example))
                           
         return similar_examples, query_vector, metadata_vectors
     
@@ -427,11 +433,19 @@ Validation Results:"""
             
         sections = []
         for i, (score, content) in enumerate(examples, 1):
-            sections.extend([
-                f"Example {i} (Similarity: {score:.2f}):",
-                content,
-                ""
-            ])
+            if isinstance(content, dict):
+                sections.extend([
+                    f"Example {i} (Similarity: {score:.2f}):",
+                    f"Source: {content.get('source', 'Unknown')}",
+                    content.get('content', ''),
+                    ""
+                ])
+            else:
+                sections.extend([
+                    f"Example {i} (Similarity: {score:.2f}):",
+                    str(content),
+                    ""
+                ])
         
         return "\n".join(sections)
     
