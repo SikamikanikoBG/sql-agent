@@ -364,18 +364,24 @@ Validation Results:"""
             # Get embeddings
             query_vector = self.embeddings.embed_query(query)
             metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
-        
-        similar_examples = []
-        for score, doc in normalized_results:
-            logger.info(f"Checking score {score} against threshold {self.similarity_threshold}")
-            if score >= self.similarity_threshold:
-                example = {
-                    'content': doc.page_content,
-                    'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
-                }
-                similar_examples.append((score, example))
-            else:
-                logger.info(f"Skipping example with score {score} below threshold {self.similarity_threshold}")
+            
+            similar_examples = []
+            for score, doc in normalized_results:
+                logger.info(f"Checking score {score} against threshold {self.similarity_threshold}")
+                if score >= self.similarity_threshold:
+                    example = {
+                        'content': doc.page_content,
+                        'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
+                    }
+                    similar_examples.append((score, example))
+                else:
+                    logger.info(f"Skipping example with score {score} below threshold {self.similarity_threshold}")
+            
+            return similar_examples, query_vector, metadata_vectors
+            
+        except Exception as e:
+            logger.error(f"Error in similarity search: {str(e)}", exc_info=True)
+            return [], [], []
                           
         return similar_examples, query_vector, metadata_vectors
     
