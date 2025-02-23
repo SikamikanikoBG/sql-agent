@@ -42,14 +42,7 @@ pip install -e .
 
 1. Add your SQL files to the `sql_agent/data` directory
 
-2. Choose your preferred interface:
-
-   Streamlit Dashboard:
-   ```bash
-   streamlit run sql_agent/streamlit_app.py
-   ```
-
-   Gradio Interface:
+2. Launch the Gradio interface:
    ```bash
    python sql_agent/gradio_app.py
    ```
@@ -102,17 +95,29 @@ ORDER BY
 
 ## Interface Features
 
-### Streamlit Dashboard
-- 📊 Rich visualization of query results
-- 📈 Usage statistics dashboard
-- 🔍 Detailed metadata explorer
-- 📝 Query history tracking
+The Gradio interface provides an intuitive way to interact with the SQL Agent:
 
-### Gradio Interface
+![Main Interface](media/tab1.png)
+
+### Generated SQL
+View the generated SQL query with syntax highlighting and explanations:
+![Generated SQL](media/tab2.png)
+
+### Query Analysis
+Get detailed analysis of how the query was constructed:
+![Query Analysis](media/tab3.png)
+
+### Similar Examples
+See related SQL examples from your codebase:
+![Similar Examples](media/tab4.png)
+
+Key Features:
 - 🚀 Quick query generation
 - 🎯 Simple, intuitive design
 - 📱 Mobile-friendly layout
 - 🔄 Real-time query processing
+- 📊 Usage statistics tracking
+- 🔍 Detailed query analysis
 
 ## Development
 
