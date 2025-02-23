@@ -175,14 +175,42 @@ class SQLAgentApp:
             
             # Results area
             if 'last_query' in st.session_state:
-                with st.expander("🔍 Query Details", expanded=True):
+                # Query result tabs
+                query_tabs = st.tabs(["Generated SQL", "Explanation", "Sample Results"])
+                
+                with query_tabs[0]:
                     st.code(st.session_state.last_query, language="sql")
-                    st.download_button(
-                        "💾 Download SQL",
-                        st.session_state.last_query,
-                        "query.sql",
-                        "text/plain"
-                    )
+                    col1, col2 = st.columns([1, 6])
+                    with col1:
+                        st.download_button(
+                            "💾 Download SQL",
+                            st.session_state.last_query,
+                            "query.sql",
+                            "text/plain"
+                        )
+                
+                with query_tabs[1]:
+                    if 'last_explanation' in st.session_state:
+                        # Split explanation into components
+                        explanation = st.session_state.last_explanation
+                        
+                        # Display main explanation
+                        st.markdown("### Query Overview")
+                        st.markdown(explanation.split("In this query:")[0])
+                        
+                        # Display detailed breakdown
+                        st.markdown("### Detailed Breakdown")
+                        if "In this query:" in explanation:
+                            points = explanation.split("In this query:")[1].strip().split("\n")
+                            for point in points:
+                                if point.strip():
+                                    st.markdown(f"- {point.strip('-').strip()}")
+                
+                with query_tabs[2]:
+                    if 'sample_results' in st.session_state:
+                        st.dataframe(st.session_state.sample_results)
+                    else:
+                        st.info("No sample results available")
         
         # Schema Browser Tab
         with tabs[1]:
@@ -234,6 +262,9 @@ class SQLAgentApp:
                 st.error(f"❌ Error: {results.error}")
                 return
                 
+            # Extract explanation from results
+            explanation = results.agent_interactions.get("parse_intent", {}).get("result", "")
+                
             # Store query in history
             if 'query_history' not in st.session_state:
                 st.session_state.query_history = []
@@ -245,8 +276,26 @@ class SQLAgentApp:
                 results.generated_query
             ))
             
-            # Store last query for display
+            # Store results for display
             st.session_state.last_query = results.generated_query
+            st.session_state.last_explanation = explanation
+            
+            # Create sample results if available
+            try:
+                import pandas as pd
+                # This is a placeholder - in real implementation, 
+                # you would get actual results from running the query
+                sample_data = {
+                    'EmployeeID': [1, 2, 3],
+                    'EmployeeName': ['John Doe', 'Jane Smith', 'Bob Wilson'],
+                    'Age': [35, 42, 28],
+                    'DepartmentName': ['Sales', 'IT', 'Marketing'],
+                    'TotalAmount': [15000, 12000, 18000],
+                    'PerformanceRank': ['A', 'B+', 'A-']
+                }
+                st.session_state.sample_results = pd.DataFrame(sample_data)
+            except Exception as e:
+                logger.warning(f"Could not create sample results: {str(e)}")
             
             # Show results
             st.markdown("### 📝 Generated SQL")
