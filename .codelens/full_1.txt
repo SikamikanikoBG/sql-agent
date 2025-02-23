@@ -6,12 +6,232 @@ __pycache__
 .*
 
 
+FILE: R:\Projects\sql_agent\CHANGELOG.md
+================================================================================
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.2.0] - 2025-02-23
+
+### Added
+- Improved Gradio UI with detailed agent interactions display
+- Markdown parsing for all output sections
+- New tabbed interface for better organization
+- Enhanced visualization of similarity search results
+- Comprehensive agent interaction logging
+- Custom CSS styling for better readability
+
+### Changed
+- Lowered similarity threshold for more comprehensive results
+- Increased chunk size in text splitter for better context
+- Improved error handling and user feedback
+- Enhanced SQL parsing and metadata extraction
+- Better formatting of example queries
+
+### Fixed
+- Vector similarity calculation improvements
+- Better handling of SQL statement parsing
+- Improved error messages and validation
+
+
+
+FILE: R:\Projects\sql_agent\LICENSE
+================================================================================
+MIT License
+
+Copyright (c) 2025 Arsen
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+
+FILE: R:\Projects\sql_agent\README.md
+================================================================================
+# SQL Agent
+
+An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language. Features both Streamlit and Gradio interfaces for maximum flexibility.
+
+## Features
+
+- 🤖 Natural language to SQL query conversion
+- 📊 Multi-database support with proper schema handling
+- 🔍 Context-aware query generation using similar examples
+- 📝 Detailed query validation and optimization
+- 📈 Token usage and cost tracking
+- 🎯 Vector similarity search for relevant examples
+- 🧠 Advanced MS SQL Server features support
+- 🎨 Choice of user interfaces:
+  - Streamlit: Full-featured dashboard
+  - Gradio: Simple, elegant interface
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/SikamikanikoBG/sql-agent.git
+cd sql-agent
+```
+
+2. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -e .
+```
+
+4. Set up your OpenAI API key:
+   - Create a `.env` file in the project root
+   - Add your API key: `OPENAI_API_KEY=your_key_here`
+
+## Usage
+
+1. Add your SQL files to the `sql_agent/data` directory
+
+2. Launch the Gradio interface:
+   ```bash
+   python sql_agent/gradio_app.py
+   ```
+
+3. Enter your natural language query and get the generated SQL
+
+## Example
+
+Input:
+```
+Show me all orders from last month with total amount greater than $1000
+```
+
+Output:
+```sql
+-- Generated SQL based on your database schema
+SELECT 
+    o.OrderID,
+    o.OrderDate,
+    o.CustomerID,
+    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) as TotalAmount
+FROM 
+    Orders o
+    JOIN [Order Details] od ON o.OrderID = od.OrderID
+WHERE 
+    o.OrderDate >= DATEADD(month, -1, GETDATE())
+    AND o.OrderDate < GETDATE()
+GROUP BY 
+    o.OrderID,
+    o.OrderDate,
+    o.CustomerID
+HAVING 
+    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) > 1000
+ORDER BY 
+    o.OrderDate DESC;
+```
+
+## Architecture
+
+- 🔄 Three-stage processing:
+  1. Intent Analysis
+  2. Query Generation
+  3. Query Validation
+- 📚 Vector store for similar example retrieval
+- 🎯 MS SQL Server specific optimizations
+- 📊 Comprehensive metadata extraction
+- 🎨 Dual interface support:
+  - Streamlit for rich dashboard experience
+  - Gradio for simple, focused interaction
+
+## Interface Features
+
+The Gradio interface provides an intuitive way to interact with the SQL Agent:
+
+![Main Interface](media/tab1.png)
+
+### Generated SQL
+View the generated SQL query with syntax highlighting and explanations:
+![Generated SQL](media/tab2.png)
+
+### Query Analysis
+Get detailed analysis of how the query was constructed:
+![Query Analysis](media/tab3.png)
+
+### Similar Examples
+See related SQL examples from your codebase:
+![Similar Examples](media/tab4.png)
+
+Key Features:
+- 🚀 Quick query generation
+- 🎯 Simple, intuitive design
+- 📱 Mobile-friendly layout
+- 🔄 Real-time query processing
+- 📊 Usage statistics tracking
+- 🔍 Detailed query analysis
+
+## Development
+
+Run tests:
+```bash
+pytest tests/
+```
+
+Format code:
+```bash
+black sql_agent/
+```
+
+Lint code:
+```bash
+flake8 sql_agent/
+```
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## Support
+
+- 📚 Documentation: Check the `docs/` directory
+- 🐛 Issues: Submit via GitHub Issues
+- 💬 Discussions: Use GitHub Discussions for questions
+
+
+
 FILE: R:\Projects\sql_agent\requirements.txt
 ================================================================================
 # Core dependencies
-langgraph>=0.0.1
 langchain>=0.1.0
+langchain-community>=0.0.1
 openai>=1.0.0
+tiktoken>=0.5.2
 
 # Web interface
 streamlit>=1.29.0
@@ -19,9 +239,19 @@ click>=8.0.0
 
 # Data processing
 typing-extensions>=4.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+plotly>=5.13.0
+scikit-learn>=1.0.0
+
+# Database
+pyodbc>=4.0.39
 
 # Development
 python-dotenv>=1.0.0
+pytest>=7.0.0
+black>=22.0.0
+flake8>=6.0.0
 
 
 
@@ -31,16 +261,35 @@ from setuptools import setup, find_packages
 
 setup(
     name="sql_agent",
-    version="0.1.0",
+    version="0.2.0",
+    description="An AI-powered SQL query generation and analysis tool",
+    author="Arsen",
+    author_email="arsen@example.com",
+    url="https://github.com/SikamikanikoBG/sql-agent",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=[
-        "streamlit",
-        "openai",
-        "langgraph",
-        "pyodbc",
-        "langchain",
-        "langchain-community"
-    ]
+        "streamlit>=1.29.0",
+        "openai>=1.0.0",
+        "langgraph>=0.0.1",
+        "langchain>=0.1.0",
+        "langchain-community>=0.0.1",
+        "pyodbc>=4.0.39",
+        "plotly>=5.13.0",
+        "python-dotenv>=1.0.0",
+        "typing-extensions>=4.0.0",
+        "click>=8.0.0"
+    ],
+    python_requires=">=3.8",
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+    ],
 )
 
 
@@ -48,29 +297,30 @@ setup(
 FILE: R:\Projects\sql_agent\.codelens\analysis.txt
 ================================================================================
 CODEBASE SUMMARY:
-This project contains 11 files:
+This project contains 15 files:
 File types: 
-Total lines of code: 928
-Average file size: 84.4 lines
-Overall complexity: 173
+Total lines of code: 2931
+Average file size: 195.4 lines
+Overall complexity: 641
 
 KEY INSIGHTS:
-- Project contains 11 analyzable files
-- Found 2 complex functions that might need attention
+- Project contains 15 analyzable files
+- Good documentation coverage (91.9%)
+- Found 13 complex functions that might need attention
 
 CODE METRICS:
-Functions: 13 (11 documented, 2 complex)
-Classes: 2 (1 documented)
+Functions: 64 (59 documented, 13 complex)
+Classes: 10 (9 documented)
 Documentation coverage: 0.0%
-Total imports: 35 (18 unique)
+Total imports: 82 (43 unique)
 
 PROJECT STRUCTURE AND CODE INSIGHTS:
 
 ================================================================================
-R:/Projects/sql_agent/ (15 lines)
+R:/Projects/sql_agent/ (34 lines)
 ================================================================================
   setup.py
-    Lines: 15
+    Lines: 34
     Complexity: 0
 
     IMPORTS:
@@ -79,124 +329,436 @@ R:/Projects/sql_agent/ (15 lines)
 
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/ (398 lines)
+R:/Projects/sql_agent/sql_agent/ (1924 lines)
 ================================================================================
   extract_metadata_from_sql_files.py
-    Lines: 57
-    Complexity: 12
+    Lines: 91
+    Complexity: 28
 
 CLASSES:
   SQLAgentOrchestrator:
-    Line: 4
+    Line: 5
     Instance methods: extract_metadata, extract_metadata_from_sql_files
 
 FUNCTIONS:
   extract_metadata:
-    Line: 5
+    Line: 6
     Args: sql_content: str
     Returns: Dict[Tuple[str, Any]]
     Doc: Extract metadata from SQL content including tables
-    Complexity: 3
+    Complexity: 6
   extract_metadata_from_sql_files:
-    Line: 20
+    Line: 53
     Args: files: List[str]
     Returns: Dict[Tuple[str, Any]]
     Doc: Extract metadata from SQL files
-    Complexity: 3
+    Complexity: 8
 
     IMPORTS:
       from typing import Any
       from typing import Dict
       from typing import List
+      import logging
       import re
 
-  metadata_extractor.py
-    Lines: 86
-    Complexity: 6
-
-FUNCTIONS:
-  extract_metadata_from_sql_files:
-    Line: 4
-    Args: files: List[str]
-    Returns: Dict[Tuple[str, Any]]
-    Doc: Extract metadata from SQL files including tables.
-    Complexity: 6
-
-    IMPORTS:
-      from typing import Any
-      from typing import Dict
-      from typing import List
-      import re
-
-  streamlit_app.py
-    Lines: 185
-    Complexity: 30
-
-FUNCTIONS:
-  main:
-    Line: 10
-    Complexity: 30
-
-    IMPORTS:
-      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
-      from typing import Dict
-      from typing import List
-      import openai
-      import os
-      import re
-      import streamlit
-      import tempfile
-
-  visualization.py
-    Lines: 70
-    Complexity: 18
+  gradio_app.py
+    Lines: 246
+    Complexity: 38
 
 CLASSES:
-  SimilaritySearchResultPlot:
-    Line: 4
-    Doc: Helper class for visualizing similarity search results
-    Instance methods: __init__, _calculate_cosine_similarity, create_visualization
+  SQLAgentGradioApp:
+    Line: 15
+    Doc: Gradio application for SQL query generation and analysis.
+    Instance methods: __init__, _initialize_data, process_query
 
 FUNCTIONS:
   __init__:
-    Line: 7
-    Args: query_vector: List[float], metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Line: 18
+    Complexity: 1
+  _initialize_data:
+    Line: 25
+    Args: data_folder: str = './sql_agent/data'
+    Returns: None
+    Doc: Initialize data and vector store once at startup
+    Complexity: 5
+  process_query:
+    Line: 50
+    Args: api_key: str, query: str, model: str, temperature: float
+    Returns: Tuple[Tuple[str, str, str, str, str]]
+    Doc: Process a query and return results
+    Complexity: 12
+  create_gradio_interface:
+    Line: 123
+    Doc: Create and configure the Gradio interface
+    Complexity: 1
+  main:
+    Line: 236
+    Complexity: 1
+
+    IMPORTS:
+      from pathlib import Path
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from sql_agent.metadata_extractor import MetadataExtractor
+      from sql_agent.visualization import SimilaritySearchResultPlot
+      from typing import Dict
+      from typing import Optional
+      from typing import Tuple
+      import gradio
+      import logging
+      import openai
+      import os
+
+  langgraph_orchestrator.py
+    Lines: 762
+    Complexity: 166
+
+CLASSES:
+  QueryResult:
+    Line: 20
+    Doc: Represents the result of a query processing operation.
+  UsageStats:
+    Line: 32
+    Doc: Tracks token usage and cost statistics.
+  SQLAgentOrchestrator:
+    Line: 39
+    Doc: Orchestrates SQL query generation and processing using LangChain.
+    Instance methods: __init__, _setup_components, _setup_logging, _setup_chains, process_query, _find_similar_examples, _format_metadata, _format_examples, _parse_validation_result, _update_usage_stats, initialize_vector_store, extract_metadata, extract_metadata_from_sql_files
+
+FUNCTIONS:
+  __init__:
+    Line: 42
+    Args: model_name: str = 'gpt-3.5-turbo', temperature: float = 0.0, similarity_threshold: float = 0.3, max_examples: int = 10
+    Doc: Initialize the SQL Agent Orchestrator.
+    Complexity: 1
+  _setup_components:
+    Line: 69
+    Returns: None
+    Doc: Initialize LangChain components.
+    Complexity: 1
+  _setup_logging:
+    Line: 91
+    Returns: None
+    Doc: Configure logging for the orchestrator.
+    Complexity: 1
+  _setup_chains:
+    Line: 98
+    Returns: None
+    Doc: Set up LangChain processing chains.
+    Complexity: 1
+  process_query:
+    Line: 186
+    Args: query: str, metadata: Dict, sql_files: Optional[List[str]] = None
+    Returns: Tuple[Tuple[QueryResult, UsageStats]]
+    Doc: Process a user's natural language query and generate an SQL query.
+    Complexity: 20
+  _find_similar_examples:
+    Line: 353
+    Args: query: str
+    Returns: Tuple[Tuple[List[Tuple[Tuple[float, str]]], List[float], List[List[float]]]]
+    Doc: Find similar SQL examples from the vector store.
+    Complexity: 9
+  _format_metadata:
+    Line: 424
+    Args: metadata: Dict
+    Returns: str
+    Doc: Format metadata for prompt templates.
+    Complexity: 15
+  _format_examples:
+    Line: 483
+    Args: examples: List[Tuple[Tuple[float, str]]]
+    Returns: str
+    Doc: Format similar examples for prompt templates.
+    Complexity: 4
+  _parse_validation_result:
+    Line: 515
+    Args: validation_result: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Parse validation result into structured format.
     Complexity: 2
+  _update_usage_stats:
+    Line: 538
+    Args: response
+    Returns: None
+    Doc: Update usage statistics from LLM interactions.
+    Complexity: 6
+  initialize_vector_store:
+    Line: 580
+    Args: sql_files: List[str]
+    Returns: None
+    Doc: Initialize the vector store with SQL examples.
+    Decorators: prevent_rerun(...)
+    Complexity: 9
+  extract_metadata:
+    Line: 646
+    Args: sql_content: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from MS SQL content including tables and their relationships.
+    Complexity: 8
+  extract_metadata_from_sql_files:
+    Line: 707
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from a list of SQL files.
+    Complexity: 6
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from langchain.prompts import PromptTemplate
+      from langchain.schema import HumanMessage
+      from langchain.schema import SystemMessage
+      from langchain.schema.runnable import RunnableSequence
+      from langchain.text_splitter import RecursiveCharacterTextSplitter
+      from langchain_community.vectorstores import FAISS
+      from langchain_openai import ChatOpenAI
+      from langchain_openai import OpenAIEmbeddings
+      from pathlib import Path
+      from sql_agent.utils.decorators import prevent_rerun
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      from typing import Tuple
+      import json
+      import logging
+      import re
+      import streamlit
+
+  metadata_extractor.py
+    Lines: 553
+    Complexity: 152
+
+CLASSES:
+  SQLObject:
+    Line: 10
+    Doc: Represents a SQL database object.
+  MetadataExtractor:
+    Line: 21
+    Doc: Extracts metadata from SQL files.
+    Instance methods: __init__, _setup_logging, _extract_database_name, _extract_table_columns, _extract_foreign_keys, extract_metadata_from_sql_files, _process_file, _parse_procedure_parameters, _extract_procedure_description, _organize_metadata, _calculate_statistics, _empty_metadata, _extract_table, _extract_temp_table, _extract_table_var, _extract_cte, _extract_index
+
+FUNCTIONS:
+  __init__:
+    Line: 24
+    Complexity: 1
+  _setup_logging:
+    Line: 53
+    Returns: None
+    Doc: Configure logging for the metadata extractor.
+    Complexity: 1
+  _extract_database_name:
+    Line: 60
+    Args: sql_content: str, table_name: str
+    Returns: Optional[str]
+    Doc: Extract database name from USE statement or fully qualified name.
+    Complexity: 4
+  _extract_table_columns:
+    Line: 85
+    Args: create_statement: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract column definitions from CREATE TABLE statement.
+    Complexity: 5
+  _extract_foreign_keys:
+    Line: 112
+    Args: create_statement: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract foreign key relationships from CREATE TABLE statement.
+    Complexity: 2
+  extract_metadata_from_sql_files:
+    Line: 134
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files including tables, views, and procedures.
+    Complexity: 4
+  _process_file:
+    Line: 169
+    Args: file_path: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Process a single SQL file and extract its metadata.
+    Complexity: 32
+  _parse_procedure_parameters:
+    Line: 346
+    Args: params_str: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Parse procedure parameters into structured format.
+    Complexity: 7
+  _extract_procedure_description:
+    Line: 380
+    Args: body: str
+    Returns: Optional[str]
+    Doc: Extract procedure description from comments in the body.
+    Complexity: 3
+  _organize_metadata:
+    Line: 403
+    Args: raw_metadata: Dict[Tuple[str, Any]]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Organize raw metadata into a structured format.
+    Complexity: 5
+  _calculate_statistics:
+    Line: 433
+    Args: metadata: Dict[Tuple[str, Any]]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Calculate various statistics about the extracted metadata.
+    Complexity: 1
+  _empty_metadata:
+    Line: 456
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Create an empty metadata structure.
+    Complexity: 1
+  _extract_table:
+    Line: 481
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]], full_content: str
+    Returns: None
+    Doc: Extract regular table metadata.
+    Complexity: 2
+  _extract_temp_table:
+    Line: 506
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract temporary table metadata.
+    Complexity: 2
+  _extract_table_var:
+    Line: 520
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract table variable metadata.
+    Complexity: 2
+  _extract_cte:
+    Line: 532
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract CTE metadata.
+    Complexity: 2
+  _extract_index:
+    Line: 543
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract index metadata.
+    Complexity: 2
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from pathlib import Path
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      from typing import Tuple
+      import logging
+      import re
+
+  visualization.py
+    Lines: 272
+    Complexity: 28
+
+CLASSES:
+  SimilaritySearchResultPlot:
+    Line: 7
+    Doc: Helper class for visualizing similarity search results
+    Instance methods: __init__, _calculate_cosine_similarity, create_visualization, _add_3d_scatter, _add_similarity_bars, _add_dimension_heatmap, _add_similarity_matrix
+
+FUNCTIONS:
+  __init__:
+    Line: 10
+    Args: query_vector: List[float], metadata_vectors: List[List[float]], labels: Optional[List[str]] = None, similarity_threshold: float = 0.7
+    Doc: Initialize the similarity search result visualization.
+    Complexity: 1
   _calculate_cosine_similarity:
-    Line: 19
+    Line: 34
     Args: a: List[float], b: List[float]
     Returns: float
     Doc: Calculate cosine similarity between two vectors.
-    Complexity: 2
-  create_visualization:
-    Line: 30
-    Returns: go.Figure
-    Doc: Create a visualization of similarity scores
     Complexity: 3
-  cosine_similarity_matrix:
-    Line: 52
-    Args: metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
-    Returns: dict
-    Doc: Calculate and visualize cosine similarity matrix
+  create_visualization:
+    Line: 56
+    Args: title: str = 'Similarity Search Results', height: int = 600, width: int = 1000
+    Returns: go.Figure
+    Doc: Create an interactive visualization of similarity scores.
+    Complexity: 1
+  _add_3d_scatter:
+    Line: 106
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add 3D scatter plot of vectors to the figure.
+    Complexity: 2
+  _add_similarity_bars:
+    Line: 146
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add bar chart of similarity scores to the figure.
+    Complexity: 1
+  _add_dimension_heatmap:
+    Line: 189
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add heatmap of vector dimensions to the figure.
+    Complexity: 1
+  _add_similarity_matrix:
+    Line: 204
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add similarity matrix heatmap to the figure.
+    Complexity: 3
+  create_similarity_matrix:
+    Line: 226
+    Args: vectors: List[List[float]], labels: Optional[List[str]] = None, similarity_threshold: float = 0.7
+    Returns: go.Figure
+    Doc: Create a standalone similarity matrix visualization.
     Complexity: 4
 
     IMPORTS:
       from plotly.subplots import make_subplots
+      from sklearn.decomposition import PCA
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      import math
+      import numpy
       import plotly.graph_objects
 
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/data/ (392 lines)
+R:/Projects/sql_agent/sql_agent/data/ (606 lines)
 ================================================================================
   q1.sql
-    Lines: 34
+    Lines: 3
     Complexity: 0
 
+    COMMENTS:
+      Line 1: Example SQL file
+      Line 2: Add your SQL schema and data files to this directory
+      Line 3: The agent will analyze them to understand your database structure
+
+  s2.sql
+    Lines: 101
+    Complexity: 25
+
+    PROCEDURE:
+      Name: spGenerateEmployeePerformanceReport
+
+    PARAMETERS:
+      @DepartmentId (INT, default=NULL)
+      @EndDate (DATE)
+      @MinSalesAmount (DECIMAL(18)
+      @StartDate (DATE)
+
     DEPENDENCIES:
-      employees
-      large
-      projects
-      sales
+      Customers
+      Departments
+      Employees
+      RankCTE
+      Sales
+      performance
+      t
+      temp
+
+    COMMENTS:
+      Line 10: Error handling
+      Line 17: Temporary table to store results
+      Line 30: Insert data into temp table
+      Line 61: Update performance ranking
+      Line 73: Return final results
+      Line 91: Cleanup
+      Line 96: Example usage:
 
   transactions.sql
     Lines: 358
@@ -290,49 +852,215 @@ $$;
       Line 351: OUT parameter
       Line 352: OUT parameter
 
+  v1.sql
+    Lines: 53
+    Complexity: 26
+
+    VIEW:
+      Name: vw_OrderDetails
+
+    DEPENDENCIES:
+      Categories
+      Customers
+      Employees
+      Orders
+      Products
+      Shippers
+      Suppliers
+      vw_OrderDetails
+
+    COMMENTS:
+      Line 1: Create a view that shows order details with customer and product information
+      Line 33: Last 2 years of orders
+      Line 36: Example usage of the view
+
+  v2.sql
+    Lines: 91
+    Complexity: 32
+
+    VIEW:
+      Name: vw_EmployeePerformance
+
+    DEPENDENCIES:
+      Attendance
+      Departments
+      EmployeeCertifications
+      EmployeeTraining
+      Employees
+      Locations
+      PerformanceReviews
+      Positions
+      ProjectAssignments
+      Salaries
+      vw_EmployeePerformance
+
+    COMMENTS:
+      Line 1: Create a view for Employee Performance Analytics
+      Line 13: Salary and compensation
+      Line 17: Performance metrics
+      Line 20: Project involvement
+      Line 23: Training and certifications
+      Line 26: Attendance
+      Line 31: Calculate attendance rate
+      Line 33: Calculate years of service
+      Line 35: Latest performance review comments
+      Line 37: Department metrics
+      Line 40: Calculate cost to department
+      Line 73: Example usage of the view
+
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/utils/ (68 lines)
+R:/Projects/sql_agent/sql_agent/utils/ (182 lines)
 ================================================================================
-  regex_search.py
-    Lines: 68
-    Complexity: 5
+  decorators.py
+    Lines: 32
+    Complexity: 9
 
 FUNCTIONS:
-  search_sql_content:
-    Line: 4
-    Args: content: str
-    Returns: Dict[Tuple[str, List[str]]]
-    Doc: Search SQL content using regex patterns for various database objects.
-    Complexity: 5
+  prevent_rerun:
+    Line: 5
+    Args: timeout: int = 60
+    Doc: Decorator to prevent re-running a function within the specified timeout period.
+    Complexity: 3
+  decorator:
+    Line: 11
+    Args: func: Callable
+    Returns: Callable
+    Complexity: 3
+  wrapper:
+    Line: 16
+    Args: **args: Any, ****kwargs: Any
+    Returns: Any
+    Decorators: wraps(...)
+    Complexity: 3
 
     IMPORTS:
+      from functools import wraps
+      from typing import Any
+      from typing import Callable
+      import time
+
+  regex_search.py
+    Lines: 150
+    Complexity: 31
+
+CLASSES:
+  SQLPattern:
+    Line: 9
+    Doc: Represents a regex pattern for SQL object detection.
+    Instance methods: compile, search
+  SQLRegexSearcher:
+    Line: 28
+    Doc: Class for searching SQL content using regex patterns.
+    Instance methods: __init__, _setup_logging, add_pattern, search_sql_content, batch_search, extract_relationships
+
+FUNCTIONS:
+  compile:
+    Line: 17
+    Returns: Pattern
+    Doc: Compile the regex pattern.
+    Complexity: 2
+  search:
+    Line: 23
+    Args: content: str
+    Returns: List[str]
+    Doc: Search content using the pattern.
+    Complexity: 1
+  __init__:
+    Line: 31
+    Doc: Initialize the searcher with predefined patterns.
+    Complexity: 1
+  _setup_logging:
+    Line: 87
+    Returns: None
+    Doc: Configure logging for the searcher.
+    Complexity: 1
+  add_pattern:
+    Line: 94
+    Args: name: str, pattern: str, flags: int = Union[re.IGNORECASE, re.MULTILINE], description: str = ''
+    Returns: None
+    Doc: Add a new search pattern.
+    Complexity: 1
+  search_sql_content:
+    Line: 100
+    Args: content: str, pattern_names: Optional[List[str]] = None
+    Returns: Dict[Tuple[str, List[str]]]
+    Doc: Search SQL content using specified patterns.
+    Complexity: 6
+  batch_search:
+    Line: 128
+    Args: contents: List[str], pattern_names: Optional[List[str]] = None
+    Returns: List[Dict[Tuple[str, List[str]]]]
+    Doc: Search multiple SQL contents using specified patterns.
+    Complexity: 1
+  extract_relationships:
+    Line: 132
+    Args: content: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract table relationships from SQL content.
+    Complexity: 2
+  get_default_searcher:
+    Line: 148
+    Returns: SQLRegexSearcher
+    Doc: Get a preconfigured instance of SQLRegexSearcher.
+    Complexity: 1
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from dataclasses import field
       from typing import Dict
       from typing import List
       from typing import Optional
+      from typing import Pattern
+      import logging
       import re
 
 
 ================================================================================
-R:/Projects/sql_agent/tests/ (55 lines)
+R:/Projects/sql_agent/tests/ (185 lines)
 ================================================================================
   conftest.py
-    Lines: 23
-    Complexity: 2
+    Lines: 153
+    Complexity: 6
 
 FUNCTIONS:
+  sample_sql_files:
+    Line: 17
+    Args: tmp_path: Path
+    Returns: Generator[Tuple[Path, None, None]]
+    Doc: Create temporary SQL files for testing.
+    Decorators: pytest.fixture
+    Complexity: 2
   mock_db_connection:
-    Line: 10
-    Doc: Create mock database connection for testing
+    Line: 61
+    Returns: Tuple[Tuple[Mock, Mock]]
+    Doc: Create mock database connection for testing.
     Decorators: pytest.fixture
     Complexity: 1
   in_memory_db:
-    Line: 18
-    Doc: Create in-memory SQLite database for testing
+    Line: 73
+    Returns: Generator[Tuple[Tuple[Tuple[sqlite3.Connection, sqlite3.Cursor]], None, None]]
+    Doc: Create in-memory SQLite database for testing.
+    Decorators: pytest.fixture
+    Complexity: 1
+  mock_openai_response:
+    Line: 111
+    Returns: Mock
+    Doc: Create mock OpenAI API response.
+    Decorators: pytest.fixture
+    Complexity: 1
+  sample_metadata:
+    Line: 123
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Create sample metadata for testing.
     Decorators: pytest.fixture
     Complexity: 1
 
     IMPORTS:
+      from _pytest.fixtures import FixtureRequest
+      from pathlib import Path
+      from typing import Generator
+      from typing import Tuple
       from unittest.mock import Mock
       import logging
       import pytest
@@ -368,118 +1096,1111 @@ FILE: R:\Projects\sql_agent\sql_agent\extract_metadata_from_sql_files.py
 ================================================================================
 import re
 from typing import List, Dict, Any
+import logging
 
 class SQLAgentOrchestrator:
     def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
         """Extract metadata from SQL content including tables"""
+        metadata = {
+            "tables": [],
+            "views": [],
+            "procedures": [],
+            "temp_tables": [],
+            "table_variables": []
+        }
         
-        try:
-            match = re.search(r'CREATE TABLE (.*)', sql_content)
-            while match:
-                yield match.group(1)
-                match = re.search(r'CREATE TABLE (.*)', sql_content, startposition=len(match.laststring))
-            
-            return []
-        
-        except Exception as e:
-            print(f"Error extracting tables: {str(e)}")
-            return []
+        # Regular table pattern
+        table_pattern = r'CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)\s*\((.*?)\);'
+        for match in re.finditer(table_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+            table_name = match.group(1).strip('[]" ')
+            if not table_name.startswith('#'):  # Skip temp tables
+                metadata["tables"].append({
+                    "name": table_name,
+                    "definition": match.group(2).strip()
+                })
+
+        # Temporary table pattern
+        temp_pattern = r'CREATE\s+TABLE\s+(#[\w\d_]+)\s*\((.*?)\);'
+        for match in re.finditer(temp_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+            metadata["temp_tables"].append({
+                "name": match.group(1),
+                "definition": match.group(2).strip()
+            })
+
+        # View pattern
+        view_pattern = r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);'
+        for match in re.finditer(view_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+            metadata["views"].append({
+                "name": match.group(1).strip('[]" '),
+                "definition": match.group(2).strip()
+            })
+
+        # Stored procedure pattern
+        proc_pattern = r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)\s*\((.*?)\)\s*AS\s*BEGIN(.*?)END;'
+        for match in re.finditer(proc_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+            metadata["procedures"].append({
+                "name": match.group(1).strip('[]" '),
+                "parameters": match.group(2).strip(),
+                "body": match.group(3).strip()
+            })
+
+        return metadata
 
     def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
         """Extract metadata from SQL files"""
-        
         if not files:
             return {
                 "tables": [],
                 "views": [],
                 "procedures": [],
-                "columns": {},
-                "schemas": {},
-                "view_definitions": {},
-                "relational_data": {},
-                "indexed_tables": {}
+                "temp_tables": [],
+                "table_variables": []
             }
-        
-        # Process each file
-        metadata = []
-        relationships = {}
-        
-        for file_path in files:
-            with open(file_path, 'r') as f:
-                sql_content = f.read()
-                
-                tables = self.extract_metadata(sql_content)
-                
-                # Store extracted metadata
-                metadata.extend(tables)
-                
-        return {
-            "tables": list(set(metadata)),
+
+        combined_metadata = {
+            "tables": [],
             "views": [],
             "procedures": [],
-            "columns": {},
-            "schemas": {},
-            "view_definitions": {},
-            "relational_data": {},
-            "indexed_tables": {}
+            "temp_tables": [],
+            "table_variables": []
         }
+
+        for file_path in files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    sql_content = f.read()
+                    file_metadata = self.extract_metadata(sql_content)
+                    
+                    # Merge metadata
+                    for key in combined_metadata:
+                        combined_metadata[key].extend(file_metadata[key])
+                        
+                    # Add source file information
+                    for items in file_metadata.values():
+                        for item in items:
+                            if isinstance(item, dict):
+                                item["source_file"] = file_path
+
+            except Exception as e:
+                logging.error(f"Error processing file {file_path}: {str(e)}")
+
+        return combined_metadata
+
+
+FILE: R:\Projects\sql_agent\sql_agent\gradio_app.py
+================================================================================
+import os
+import logging
+import gradio as gr
+from pathlib import Path
+from typing import Dict, Optional, Tuple
+import openai
+from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+from sql_agent.metadata_extractor import MetadataExtractor
+from sql_agent.visualization import SimilaritySearchResultPlot
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class SQLAgentGradioApp:
+    """Gradio application for SQL query generation and analysis."""
+    
+    def __init__(self):
+        self.metadata_extractor = MetadataExtractor()
+        self.metadata = None
+        # Initialize agent and vector store once at startup
+        self.agent = SQLAgentOrchestrator()
+        self._initialize_data()
+        
+    def _initialize_data(self, data_folder: str = "./sql_agent/data") -> None:
+        """Initialize data and vector store once at startup"""
+        try:
+            data_path = Path(data_folder)
+            if not data_path.exists():
+                return "❌ Data folder not found"
+                
+            sql_files = list(data_path.glob("*.sql"))
+            if not sql_files:
+                return "❌ No SQL files found"
+                
+            # Extract metadata and initialize vector store once
+            self.metadata = self.metadata_extractor.extract_metadata_from_sql_files(
+                [str(f) for f in sql_files]
+            )
+            if self.metadata:
+                # Initialize vector store once
+                self.agent.initialize_vector_store([str(f) for f in sql_files])
+                return "✅ Data initialized successfully"
+            return "⚠️ No metadata extracted"
+            
+        except Exception as e:
+            logger.error(f"Error initializing data: {str(e)}")
+            return f"❌ Error initializing data: {str(e)}"
+
+    def process_query(self, api_key: str, query: str, model: str, temperature: float) -> Tuple[str, str, str, str, str]:
+        """Process a query and return results"""
+        if not api_key.strip():
+            return "⚠️ API Key Required", "", "", "", ""
+            
+        if not query.strip():
+            return "⚠️ Please enter a query", "", "", "", ""
+            
+        try:
+            # Set API key
+            openai.api_key = api_key
+            
+            # Update agent settings
+            self.agent.model_name = model
+            self.agent.temperature = temperature
+            
+            # Process query
+            results, usage_stats = self.agent.process_query(query, self.metadata)
+            
+            if results.error:
+                return f"❌ Error: {results.error}", "", "", "", ""
+                
+            # Format agent interactions
+            agent_interactions = "## 🤖 Agent Interactions\n\n"
+            for step, interaction in results.agent_interactions.items():
+                agent_interactions += f"### Step: {step}\n\n"
+                
+                if "system_prompt" in interaction:
+                    agent_interactions += "<div class='system-message'>\n\n"
+                    agent_interactions += "**System Prompt:**\n\n"
+                    agent_interactions += f"```\n{interaction['system_prompt']}\n```\n\n"
+                    agent_interactions += "</div>\n\n"
+                
+                if "user_prompt" in interaction:
+                    agent_interactions += "<div class='user-message'>\n\n"
+                    agent_interactions += "**User Prompt:**\n\n"
+                    agent_interactions += f"```\n{interaction['user_prompt']}\n```\n\n"
+                    agent_interactions += "</div>\n\n"
+                
+                if "result" in interaction:
+                    agent_interactions += "<div class='assistant-message'>\n\n"
+                    agent_interactions += "**Assistant Response:**\n\n"
+                    agent_interactions += f"```\n{interaction['result']}\n```\n\n"
+                    agent_interactions += "</div>\n\n"
+                
+                agent_interactions += "---\n\n"
+            
+            # Format similar examples
+            similar_examples = "## 📚 Similar Examples\n\n"
+            if results.similarity_search:
+                for i, (score, example) in enumerate(results.similarity_search, 1):
+                    similar_examples += f"### Example {i} (Similarity: {score:.2f})\n\n"
+                    if isinstance(example, dict):
+                        similar_examples += f"**Source:** {example.get('source', 'Unknown')}\n\n"
+                        similar_examples += f"```sql\n{example.get('content', '')}\n```\n\n"
+                    else:
+                        similar_examples += f"```sql\n{str(example)}\n```\n\n"
+            
+            # Format explanation
+            explanation = "## 🎯 Query Analysis\n\n"
+            explanation += results.agent_interactions.get("parse_intent", {}).get("result", "")
+            
+            # Format usage stats
+            usage_info = "## 📊 Usage Statistics\n\n"
+            usage_info += f"- **Total Tokens:** {usage_stats.total_tokens:,}\n"
+            usage_info += f"- **Cost:** ${usage_stats.cost:.4f}\n"
+            
+            return results.generated_query, explanation, similar_examples, usage_info, agent_interactions
+            
+        except Exception as e:
+            logger.error(f"Error processing query: {str(e)}")
+            return f"❌ Error: {str(e)}", "", "", ""
+
+def create_gradio_interface():
+    """Create and configure the Gradio interface"""
+    app = SQLAgentGradioApp()
+    
+    # Custom CSS
+    custom_css = """
+    .container { 
+        max-width: 1400px; 
+        margin: auto;
+        padding: 20px;
+    }
+    .output-panel { 
+        min-height: 300px;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 15px;
+        margin: 10px 0;
+    }
+    .markdown-text {
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    .agent-interaction {
+        border-left: 4px solid #007bff;
+        padding-left: 15px;
+        margin: 10px 0;
+    }
+    .system-message {
+        background: #e9ecef;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 5px 0;
+    }
+    .user-message {
+        background: #f1f3f5;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 5px 0;
+    }
+    .assistant-message {
+        background: #e3f2fd;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 5px 0;
+    }
+    """
+    
+    # Create interface
+    with gr.Blocks(css=custom_css) as interface:
+        gr.Markdown("# SQL Agent")
+        
+        with gr.Row():
+            with gr.Column(scale=1):
+                # Settings panel
+                gr.Markdown("### ⚙️ Settings")
+                api_key = gr.Textbox(
+                    label="OpenAI API Key",
+                    placeholder="Enter your OpenAI API key",
+                    type="password",
+                    value=os.getenv('OPENAI_API_KEY', '')
+                )
+                model = gr.Dropdown(
+                    choices=["gpt-3.5-turbo", "gpt-4"],
+                    value="gpt-3.5-turbo",
+                    label="Model"
+                )
+                temperature = gr.Slider(
+                    minimum=0.0,
+                    maximum=1.0,
+                    value=0.0,
+                    step=0.1,
+                    label="Temperature"
+                )
+            
+            with gr.Column(scale=2):
+                # Query input
+                gr.Markdown("### 🔍 Query Input")
+                query = gr.Textbox(
+                    label="Describe your query",
+                    placeholder="Example: Show me all orders from last month with total amount greater than $1000",
+                    lines=4
+                )
+                generate_btn = gr.Button("🚀 Generate SQL", variant="primary")
+        
+        with gr.Tabs() as tabs:
+            with gr.TabItem("📝 Generated SQL"):
+                sql_output = gr.Code(language="sql", label="Generated SQL Query")
+            
+            with gr.TabItem("🎯 Query Analysis"):
+                explanation_output = gr.Markdown(label="Analysis")
+            
+            with gr.TabItem("📚 Similar Examples"):
+                examples_output = gr.Markdown(label="Examples")
+            
+            with gr.TabItem("📊 Usage Statistics"):
+                usage_output = gr.Markdown(label="Usage")
+            
+            with gr.TabItem("🤖 Agent Interactions"):
+                agent_interactions_output = gr.Markdown(label="Interactions")
+        
+        # Set up event handler
+        generate_btn.click(
+            fn=app.process_query,
+            inputs=[api_key, query, model, temperature],
+            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
+        )
+        
+        # Initialize app
+        init_status = app._initialize_data()
+        gr.Markdown(f"### Status: {init_status}")
+    
+    return interface
+
+def main():
+    interface = create_gradio_interface()
+    interface.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        share=True,
+        inbrowser=True
+    )
+
+if __name__ == "__main__":
+    main()
 
 
 
 FILE: R:\Projects\sql_agent\sql_agent\langgraph_orchestrator.py
 ================================================================================
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple, Optional
+import logging
+from dataclasses import dataclass
+import streamlit as st
+from pathlib import Path
+import json
+from sql_agent.utils.decorators import prevent_rerun
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.schema import HumanMessage, SystemMessage
+from langchain.prompts import PromptTemplate
+from langchain.schema.runnable import RunnableSequence
+from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+logger = logging.getLogger(__name__)
+
+@dataclass
+class QueryResult:
+    """Represents the result of a query processing operation."""
+    generated_query: str
+    agent_interactions: Dict[str, Any]
+    similarity_search: List[Tuple[float, str]]
+    validation_result: Dict[str, Any]
+    relevant_files: List[str]
+    error: Optional[str] = None
+    query_vector: Optional[List[float]] = None
+    metadata_vectors: Optional[List[List[float]]] = None
+
+@dataclass
+class UsageStats:
+    """Tracks token usage and cost statistics."""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    cost: float = 0.0
 
 class SQLAgentOrchestrator:
-    def __init__(self):
+    """Orchestrates SQL query generation and processing using LangChain."""
+    
+    def __init__(
+        self,
+        model_name: str = "gpt-3.5-turbo",
+        temperature: float = 0.0,
+        similarity_threshold: float = 0.3,  # Lower threshold to get more matches
+        max_examples: int = 10  # Increase number of examples
+    ):
+        """Initialize the SQL Agent Orchestrator.
+        
+        Args:
+            model_name: The OpenAI model to use for query generation
+            temperature: Model temperature (0-1)
+            similarity_threshold: Threshold for similarity search results
+            max_examples: Maximum number of similar examples to retrieve
+        """
+        self.model_name = model_name
+        self.temperature = temperature
+        self.similarity_threshold = similarity_threshold
+        self.max_examples = max_examples
+        
         self.metadata = None
-    
-    def _create_workflow(self) -> StateGraph:
-        """Create the Langgraph workflow for SQL query generation."""
-        # Define the schema for our state
-        class AgentState(TypedDict):
-            user_input: str
-            metadata: Dict
-            parsed_intent: Annotated[str, "The parsed user intent"]
-            relevant_content: Annotated[List[Dict], "Relevant SQL content from vector search"]
-            generated_query: Annotated[str, "The generated SQL query"]
-            is_valid: Annotated[bool, "Whether the query is valid"]
-    
-    def process_query(self, user_input: str, metadata: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """Process a user's natural language query and generate an SQL query."""
-        # Placeholder for actual processing logic
-        return {
-            "agent_interactions": {},
-            "similarity_search": [],
-            "generated_query": "SELECT * FROM users WHERE id = 1",
-            "usage_stats": {
-                "tokens": {"prompt": 0, "completion": 0},
-                "cost": 0.0
-            }
-        }
+        self.vector_store = None
+        self.usage_stats = UsageStats()
+        
+        self._setup_components()
+        self._setup_logging()
+        
+    def _setup_components(self) -> None:
+        """Initialize LangChain components."""
+        # Initialize language model
+        self.llm = ChatOpenAI(
+            model_name=self.model_name,
+            temperature=self.temperature
+        )
+        
+        # Initialize embeddings model
+        self.embeddings = OpenAIEmbeddings()
+        
+        # Initialize text splitter for SQL
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1500,  # Larger chunks to maintain SQL statement context
+            chunk_overlap=300,  # More overlap to avoid breaking statements
+            separators=[";", "\nGO\n", "\nBEGIN\n", "\nEND\n", "\n\n", "\n", " "],  # SQL-specific separators
+            length_function=len
+        )
+        
+        # Setup processing chains
+        self._setup_chains()
+        
+    def _setup_logging(self) -> None:
+        """Configure logging for the orchestrator."""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
 
-    def extract_metadata(self, sql_content: str) -> List[str]:
-        """Extract metadata from SQL content including tables"""
+    def _setup_chains(self) -> None:
+        """Set up LangChain processing chains."""
+        # Intent parsing chain
+        self.intent_prompt = PromptTemplate(
+            input_variables=["query", "metadata", "similar_examples"],
+            template="""Analyze the user's query intent using the context below:
+
+{similar_examples}
+
+User Query:
+{query}
+
+Identify:
+1. Required tables and their relationships
+2. Desired columns/calculations
+3. Any filters or conditions
+4. Sorting or grouping requirements
+
+Intent Analysis:"""
+        )
+        self.intent_chain = self.intent_prompt | self.llm
+        
+        # Query generation chain for MS SQL
+        self.query_prompt = PromptTemplate(
+            input_variables=["intent", "metadata", "similar_examples"],
+            template="""Generate a MS SQL query based on the analyzed intent and similar examples:
+
+{similar_examples}
+
+Analyzed Intent:
+{intent}
+
+Consider MS SQL best practices:
+1. Use appropriate JOIN types with proper NOLOCK hints where needed
+2. Include schema names and use square brackets for identifiers
+3. Add proper WHERE clauses with parameter sniffing consideration
+4. Include GROUP BY/ORDER BY with appropriate indexing hints
+5. Use appropriate MS SQL features:
+   - CTEs for complex queries
+   - OFFSET/FETCH for paging
+   - OUTPUT clause for DML operations
+   - Appropriate data type functions
+   - Proper NULL handling with ISNULL/COALESCE
+   - Table variables vs temp tables based on size
+   - Proper transaction isolation levels
+
+Important Notes for Temporary Tables:
+1. If you need data from a temporary table (#temp), look at its source tables in the metadata
+2. You can either:
+   a) Use the source tables directly with appropriate JOINs and conditions
+   b) Recreate the temporary table using its definition from metadata
+3. Choose the approach that best matches the original query's intent and performance needs
+
+Generated SQL Query:"""
+        )
+        self.query_chain = self.query_prompt | self.llm
+        
+        # Query validation chain for MS SQL
+        self.validation_prompt = PromptTemplate(
+            input_variables=["query", "metadata"],
+            template="""Validate the following MS SQL query against the database metadata:
+
+Database Metadata:
+{metadata}
+
+SQL Query:
+{query}
+
+Check for:
+1. Table existence and relationships (including schema names)
+2. Column validity and data types
+3. MS SQL syntax correctness
+4. Performance considerations:
+   - Proper indexing hints
+   - JOIN optimization
+   - NOLOCK usage where appropriate
+   - Execution plan hints
+5. SQL injection risks
+6. MS SQL specific features:
+   - Proper use of square brackets for identifiers
+   - Schema qualification
+   - Appropriate collation settings
+   - Table hints and locking hints
+
+Validation Results:"""
+        )
+        self.validation_chain = self.validation_prompt | self.llm
+
+    def process_query(self, query: str, metadata: Dict, sql_files: Optional[List[str]] = None) -> Tuple[QueryResult, UsageStats]:
+        """Process a user's natural language query and generate an SQL query.
+        
+        Args:
+            query: The natural language query from the user
+            metadata: Database metadata including tables, views, etc.
+            
+        Returns:
+            Tuple containing QueryResult and UsageStats
+        """
+        logger.info(f"Processing query: {query}")
         
         try:
-            match = re.search(r'CREATE TABLE (.*)', sql_content)
-            while match:
-                yield match.group(1)
-                match = re.search(r'CREATE TABLE (.*)', sql_content, startposition=len(match.laststart))
+            # Reset usage stats
+            self.usage_stats = UsageStats()
             
-            return []
+            # Initialize vector store if needed
+            if sql_files and not self.vector_store:
+                self.initialize_vector_store(sql_files)
+            
+            # Find similar examples and get vectors
+            with st.spinner("🔍 Searching vector store..."):
+                similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
+            
+
+            # Check if we have any relevant examples
+            max_similarity = max([score for score, _ in similar_examples]) if similar_examples else 0
+            if not similar_examples or (max_similarity < self.similarity_threshold and len(similar_examples) < 3):
+                return QueryResult(
+                    generated_query="",
+                    agent_interactions={},
+                    similarity_search=similar_examples,
+                    validation_result={},
+                    relevant_files=[],
+                    error="⚠️ No sufficiently similar SQL patterns found (threshold: {:.2f}). Showing all search results above for inspection.".format(self.similarity_threshold),
+                    query_vector=query_vector,
+                    metadata_vectors=metadata_vectors
+                ), self.usage_stats
+            
+            # Format similar examples for display
+            with st.spinner("📝 Formatting examples..."):
+                formatted_examples = []
+            for score, content in similar_examples:
+                if isinstance(content, dict):
+                    formatted_examples.append({
+                        "score": float(score),
+                        "content": content.get("content", ""),
+                        "source": content.get("source", "Unknown")
+                    })
+                else:
+                    formatted_examples.append({
+                        "score": float(score),
+                        "content": str(content),
+                        "source": "Unknown"
+                    })
+            
+            # Parse intent
+            with st.spinner("🎯 Analyzing query intent..."):
+                formatted_examples = self._format_examples(similar_examples)
+                context = formatted_examples if similar_examples else self._format_metadata(metadata)
+                
+                logger.info(f"Using {len(similar_examples)} similar examples in prompt")
+                for i, (score, example) in enumerate(similar_examples):
+                    logger.info(f"Example {i+1} (score: {score:.2f}):")
+                    logger.info(f"Content: {example.get('content', '')[:200]}...")
+                
+                logger.info("Starting intent parsing...")
+            try:
+                intent_result = self.intent_chain.invoke({
+                    "query": query,
+                    "metadata": "",  # Empty metadata when we have examples
+                    "similar_examples": context
+                })
+                logger.info("Intent parsing completed")
+                self._update_usage_stats(intent_result)
+            except Exception as e:
+                logger.error(f"Error during intent parsing: {str(e)}", exc_info=True)
+                raise
+            
+            # Generate query
+            with st.spinner("✍️ Generating SQL query..."):
+                logger.info("Starting query generation...")
+            try:
+                query_result = self.query_chain.invoke({
+                    "intent": intent_result.content,
+                    "metadata": "",  # Empty metadata when we have examples
+                    "similar_examples": context
+                })
+                logger.info("Query generation completed")
+                self._update_usage_stats(query_result)
+            except Exception as e:
+                logger.error(f"Error during query generation: {str(e)}", exc_info=True)
+                raise
+            
+            # Validate generated query
+            with st.spinner("✅ Validating generated query..."):
+                logger.info("Starting query validation...")
+            try:
+                # For validation, we need minimal schema info
+                minimal_metadata = {
+                    k: v for k, v in metadata.items() 
+                    if k in ['tables', 'views', 'columns', 'relationships']
+                }
+                validation_result = self.validation_chain.invoke({
+                    "query": query_result.content,
+                    "metadata": self._format_metadata(minimal_metadata)
+                })
+                logger.info("Query validation completed")
+                self._update_usage_stats(validation_result)
+            except Exception as e:
+                logger.error(f"Error during query validation: {str(e)}", exc_info=True)
+                raise
+
+            # Track relevant context
+            relevant_files = []
+            for score, content in similar_examples:
+                if isinstance(content, dict) and "source" in content:
+                    if score > self.similarity_threshold:
+                        relevant_files.append(content["source"])
+                elif isinstance(content, str) and hasattr(content, "metadata"):
+                    metadata = getattr(content, "metadata", {})
+                    if metadata.get("source") and score > self.similarity_threshold:
+                        relevant_files.append(metadata["source"])
+            
+            # Prepare result
+            result = QueryResult(
+                generated_query=query_result.content,
+                agent_interactions={
+                    "parse_intent": {
+                        "system_prompt": self.intent_prompt.template,
+                        "user_prompt": query,
+                        "result": intent_result.content,
+                        "tokens_used": intent_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(intent_result, 'generation_info') else 0
+                    },
+                    "generate_query": {
+                        "system_prompt": self.query_prompt.template,
+                        "user_prompt": intent_result.content,
+                        "result": query_result.content,
+                        "tokens_used": query_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(query_result, 'generation_info') else 0
+                    },
+                    "validate_query": {
+                        "system_prompt": self.validation_prompt.template,
+                        "user_prompt": query_result.content,
+                        "result": validation_result.content,
+                        "tokens_used": validation_result.generation_info.get('token_usage', {}).get('total_tokens', 0) if hasattr(validation_result, 'generation_info') else 0
+                    }
+                },
+                similarity_search=similar_examples,
+                query_vector=query_vector,
+                metadata_vectors=metadata_vectors,
+                validation_result=self._parse_validation_result(validation_result.content),
+                relevant_files=relevant_files
+            )
+            
+            return result, self.usage_stats
+            
+        except Exception as e:
+            logger.error(f"Error processing query: {str(e)}", exc_info=True)
+            return QueryResult(
+                generated_query=f"ERROR: {str(e)}",
+                agent_interactions={},
+                similarity_search=[],
+                validation_result={},
+                relevant_files=[],
+                error=str(e)
+            ), self.usage_stats
+            
+    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
+        """Find similar SQL examples from the vector store.
         
+        Args:
+            query: The user's query to find similar examples for
+            
+        Returns:
+            Tuple containing:
+            - List of (score, content) tuples
+            - Query vector
+            - List of metadata vectors
+        """
+        if not self.vector_store:
+            return [], [], []
+            
+        try:
+            results = self.vector_store.similarity_search_with_score(
+                query,
+                k=self.max_examples
+            )
+            logger.info(f"Found {len(results)} similar examples")
+            
+            # Log the actual results for debugging
+            for doc, score in results:
+                logger.info(f"Similarity score: {score}")
+                logger.info(f"Content: {doc.page_content[:100]}...")  # First 100 chars
+                logger.info(f"Metadata: {doc.metadata}")
+                
+            # Convert L2 distance to cosine similarity (0-1 range)
+            # FAISS returns (Document, score) tuples
+            max_distance = max(score for doc, score in results) if results else 1
+            normalized_results = []
+            for doc, score in results:
+                # Convert L2 distance to similarity score (0-1)
+                similarity = 1 - (score / max_distance)
+                normalized_results.append((similarity, doc))
+                logger.info(f"Original L2 distance: {score}, Normalized similarity: {similarity}")
+            
+            logger.info("Normalized similarity scores:")
+            for score, doc in normalized_results:
+                logger.info(f"Normalized score: {score}")
+            
+            # Get embeddings
+            query_vector = self.embeddings.embed_query(query)
+            metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
+            
+            similar_examples = []
+            for similarity, doc in normalized_results:
+                logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
+                # Include more examples that meet minimum threshold
+                if similarity >= 0.1:  # Very low minimum threshold to get more results
+                    try:
+                        example = {
+                            'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
+                            'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
+                        }
+                        similar_examples.append((similarity, example))
+                        logger.info(f"Added example with similarity {similarity}")
+                    except Exception as e:
+                        logger.error(f"Error processing document: {str(e)}")
+                else:
+                    logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
+            
+            return similar_examples, query_vector, metadata_vectors
+            
+        except Exception as e:
+            logger.error(f"Error in similarity search: {str(e)}", exc_info=True)
+            return [], [], []
+                          
+        return similar_examples, query_vector, metadata_vectors
+    
+    def _format_metadata(self, metadata: Dict) -> str:
+        """Format metadata for prompt templates.
+        
+        Args:
+            metadata: Raw metadata dictionary
+            
+        Returns:
+            Formatted metadata string
+        """
+        sections = []
+        
+        # Format permanent tables
+        if metadata.get("permanent_tables"):
+            sections.append("Permanent Tables:")
+            for table in metadata["permanent_tables"]:
+                if isinstance(table, dict):
+                    table_name = table.get("name", "unknown")
+                    database = table.get("database", "")
+                    prefix = f"[{database}]." if database else ""
+                    sections.append(f"- {prefix}{table_name}")
+                    if metadata.get("schemas", {}).get(table_name):
+                        schema = metadata["schemas"][table_name]
+                        if isinstance(schema, list):
+                            for column in schema:
+                                sections.append(f"  * {column['name']}: {column['type']}")
+                else:
+                    sections.append(f"- {table}")
+
+        # Format temporary tables with their source tables
+        if metadata.get("temp_tables"):
+            sections.append("\nTemporary Tables:")
+            for temp_name, temp_info in metadata["temp_tables"].items():
+                sections.append(f"- {temp_name}")
+                sections.append("  Definition:")
+                sections.append(f"  {temp_info['definition']}")
+                if temp_info.get("source_tables"):
+                    sections.append("  Source Tables:")
+                    for source in temp_info["source_tables"]:
+                        sections.append(f"  * {source}")
+        
+        if metadata.get("views"):
+            sections.append("\nViews:")
+            for view in metadata["views"]:
+                sections.append(f"- {view}")
+        
+        if metadata.get("relationships"):
+            sections.append("\nRelationships:")
+            for rel in metadata.get("relationships", []):
+                source_table = rel.get("source_table", "unknown")
+                target_table = rel.get("target_table", "unknown")
+                source_cols = rel.get("source_columns", ["unknown"])
+                target_cols = rel.get("target_columns", ["unknown"])
+                sections.append(
+                    f"- {source_table}.{','.join(source_cols)} -> "
+                    f"{target_table}.{','.join(target_cols)}"
+                )
+        
+        return "\n".join(sections)
+    
+    def _format_examples(self, examples: List[Tuple[float, str]]) -> str:
+        """Format similar examples for prompt templates.
+        
+        Args:
+            examples: List of (score, content) tuples
+            
+        Returns:
+            Formatted examples string
+        """
+        if not examples:
+            return "No similar examples found."
+            
+        sections = ["Similar SQL examples found:"]
+        for i, (score, content) in enumerate(examples, 1):
+            if isinstance(content, dict):
+                sections.extend([
+                    f"\nExample {i} (Similarity: {score:.2f}):",
+                    f"Source: {content.get('source', 'Unknown')}",
+                    "SQL:",
+                    content.get('content', ''),
+                    "-" * 80  # Separator
+                ])
+            else:
+                sections.extend([
+                    f"\nExample {i} (Similarity: {score:.2f}):",
+                    "SQL:",
+                    str(content),
+                    "-" * 80  # Separator
+                ])
+        
+        return "\n".join(sections)
+    
+    def _parse_validation_result(self, validation_result: str) -> Dict[str, Any]:
+        """Parse validation result into structured format.
+        
+        Args:
+            validation_result: Raw validation result string
+            
+        Returns:
+            Structured validation result
+        """
+        try:
+            # Try to parse as JSON first
+            return json.loads(validation_result)
+        except json.JSONDecodeError:
+            # Fall back to basic parsing
+            lines = validation_result.split("\n")
+            result = {
+                "valid": any("valid" in line.lower() for line in lines),
+                "issues": [line for line in lines if "issue" in line.lower()],
+                "warnings": [line for line in lines if "warning" in line.lower()],
+                "suggestions": [line for line in lines if "suggest" in line.lower()]
+            }
+            return result
+    
+    def _update_usage_stats(self, response) -> None:
+        """Update usage statistics from LLM interactions."""
+        try:
+            # Try different ways to get token usage
+            usage = None
+            
+            # Try getting from generation_info
+            if hasattr(response, 'generation_info'):
+                usage = response.generation_info.get('token_usage', {})
+            
+            # Try getting from response.usage directly
+            elif hasattr(response, 'usage'):
+                usage = response.usage
+            
+            # Try getting from AIMessage additional_kwargs
+            elif hasattr(response, 'additional_kwargs'):
+                usage = response.additional_kwargs.get('token_usage', {})
+            
+            if usage:
+                # Update token counts
+                self.usage_stats.prompt_tokens += int(usage.get('prompt_tokens', 0))
+                self.usage_stats.completion_tokens += int(usage.get('completion_tokens', 0))
+                self.usage_stats.total_tokens = (
+                    self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
+                )
+                
+                # Calculate approximate cost
+                prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
+                completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
+                
+                self.usage_stats.cost = (
+                    self.usage_stats.prompt_tokens * prompt_rate / 1000 +
+                    self.usage_stats.completion_tokens * completion_rate / 1000
+                )
+                
+                logger.info(f"Updated usage stats - Prompt: {self.usage_stats.prompt_tokens}, "
+                          f"Completion: {self.usage_stats.completion_tokens}, "
+                          f"Total: {self.usage_stats.total_tokens}")
+        except Exception as e:
+            logger.error(f"Error updating usage stats: {str(e)}")
+    
+    @prevent_rerun(timeout=60)
+    def initialize_vector_store(self, sql_files: List[str]) -> None:
+        """Initialize the vector store with SQL examples.
+        
+        Args:
+            sql_files: List of SQL file paths
+        """
+        texts = []
+        metadatas = []
+        
+        for file_path in sql_files:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    
+                    # First split by major SQL statements
+                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
+                    
+                    for i in range(1, len(statements), 2):
+                        if i+1 < len(statements):
+                            # Extract the main SQL operation type first
+                            operation_type = statements[i].strip().upper()
+                            
+                            # Combine keyword with its statement
+                            full_stmt = statements[i] + statements[i+1]
+                            
+                            # Only store non-trivial SQL statements
+                            if len(full_stmt.split()) > 10:  # Meaningful statements
+                                # Clean and normalize the statement
+                                cleaned_stmt = ' '.join(full_stmt.split())
+                                
+                                # Store both the full statement and key parts
+                                texts.append(cleaned_stmt)
+                                metadatas.append({
+                                    "source": file_path,
+                                    "content": cleaned_stmt,
+                                    "type": "sql_statement",
+                                    "operation": operation_type,
+                                    "size": len(cleaned_stmt)
+                                })
+                                
+                                # For SELECT statements, also store the column list separately
+                                if operation_type == "SELECT":
+                                    columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
+                                    if columns_match:
+                                        columns_text = columns_match.group(1)
+                                        texts.append(columns_text)
+                                        metadatas.append({
+                                            "source": file_path,
+                                            "content": columns_text,
+                                            "type": "column_list",
+                                            "parent_statement": cleaned_stmt
+                                        })
+                            
+                            logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
+                    
+            except Exception as e:
+                logger.error(f"Error processing file {file_path}: {str(e)}")
+        
+        if texts:
+            self.vector_store = FAISS.from_texts(
+                texts=texts,
+                embedding=self.embeddings,
+                metadatas=metadatas
+            )
+            logger.info(f"Initialized vector store with {len(texts)} chunks")
+    
+    def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
+        """Extract metadata from MS SQL content including tables and their relationships.
+        
+        Args:
+            sql_content: The SQL content to analyze
+            
+        Returns:
+            Dictionary containing tables and their relationships
+        """
+        try:
+            metadata = {
+                "permanent_tables": [],
+                "temp_tables": {},
+                "table_variables": {},
+                "ctes": {}
+            }
+
+            # Extract permanent tables from SELECT/JOIN/etc
+            permanent_pattern = r'(?:FROM|JOIN)\s+(\[?[\w\.\[\]]+\]?)(?:\s|$)'
+            for match in re.finditer(permanent_pattern, sql_content, re.IGNORECASE):
+                table_name = match.group(1).strip('[]')
+                if table_name and not table_name.startswith(('#', '@')):
+                    metadata["permanent_tables"].append(table_name)
+
+            # Extract temp tables and their source tables
+            temp_pattern = r'CREATE\s+TABLE\s+(#[\w\.\[\]]+)\s+(?:AS\s+)?(.*?)(;|\s*CREATE|\s*$)'
+            for match in re.finditer(temp_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                temp_name = match.group(1)
+                definition = match.group(2)
+                source_tables = re.findall(permanent_pattern, definition, re.IGNORECASE)
+                metadata["temp_tables"][temp_name] = {
+                    "definition": definition.strip(),
+                    "source_tables": [t.strip('[]') for t in source_tables if not t.startswith(('#', '@'))]
+                }
+
+            # Extract table variables and their source tables
+            var_pattern = r'DECLARE\s+(@[\w]+)\s+TABLE\s*\((.*?)\)'
+            for match in re.finditer(var_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                var_name = match.group(1)
+                definition = match.group(2)
+                metadata["table_variables"][var_name] = {
+                    "definition": definition.strip()
+                }
+
+            # Extract CTEs and their source tables
+            cte_pattern = r'WITH\s+(\[?[\w]+\]?)\s+AS\s*\((.*?)\)\s*(?:,|SELECT|INSERT|UPDATE|DELETE)'
+            for match in re.finditer(cte_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                cte_name = match.group(1).strip('[]')
+                definition = match.group(2)
+                source_tables = re.findall(permanent_pattern, definition, re.IGNORECASE)
+                metadata["ctes"][cte_name] = {
+                    "definition": definition.strip(),
+                    "source_tables": [t.strip('[]') for t in source_tables if not t.startswith(('#', '@'))]
+                }
+
+            return metadata
+            
+        except Exception as e:
+            logger.error(f"Error extracting tables: {str(e)}", exc_info=True)
+            return []
+    
     def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
-        """Extract metadata from a list of SQL files."""
+        """Extract metadata from a list of SQL files.
+        
+        Args:
+            files: List of SQL file paths to analyze
+            
+        Returns:
+            Dictionary containing extracted metadata
+        """
         if not self.metadata:
-            self.metadata = {}
+            self.metadata = {
+                "permanent_tables": [],
+                "temp_tables": {},
+                "table_variables": {},
+                "ctes": {},
+                "views": [],
+                "procedures": [],
+                "columns": {},
+                "schemas": {},
+                "relationships": []
+            }
+            
             for file in files:
-                with open(file, 'r') as f:
-                    sql_content = f.read()
-                    tables = list(self.extract_metadata(sql_content))
-                    if tables:
-                        self.metadata[file] = {"tables": tables}
+                try:
+                    with open(file, 'r', encoding='utf-8') as f:
+                        sql_content = f.read()
+                        file_metadata = self.extract_metadata(sql_content)
+                        
+                        # Merge permanent tables
+                        self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
+                        
+                        # Merge temp tables with their source tables
+                        for temp_name, temp_info in file_metadata["temp_tables"].items():
+                            if temp_name not in self.metadata["temp_tables"]:
+                                self.metadata["temp_tables"][temp_name] = temp_info
+                            else:
+                                # If temp table already exists, merge source tables
+                                existing_sources = set(self.metadata["temp_tables"][temp_name]["source_tables"])
+                                new_sources = set(temp_info["source_tables"])
+                                self.metadata["temp_tables"][temp_name]["source_tables"] = list(existing_sources | new_sources)
+                        
+                        # Merge table variables
+                        self.metadata["table_variables"].update(file_metadata["table_variables"])
+                        
+                        # Merge CTEs
+                        self.metadata["ctes"].update(file_metadata["ctes"])
+                        
+                        # Store file-specific metadata
+                        self.metadata[file] = file_metadata
+                except Exception as e:
+                    logger.error(f"Error processing file {file}: {str(e)}", exc_info=True)
+                    
+            # Remove duplicates from tables list
+            self.metadata["tables"] = list(set(self.metadata["tables"]))
+            
         return self.metadata
 
 
@@ -487,492 +2208,547 @@ class SQLAgentOrchestrator:
 FILE: R:\Projects\sql_agent\sql_agent\metadata_extractor.py
 ================================================================================
 import re
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional, Tuple
+from dataclasses import dataclass
+from pathlib import Path
 
-def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
-    """Extract metadata from SQL files including tables."""
-    if not files:
+logger = logging.getLogger(__name__)
+
+@dataclass
+class SQLObject:
+    """Represents a SQL database object."""
+    type: str
+    name: str
+    definition: str
+    source_file: str
+    database: Optional[str] = None
+    schema: Optional[List[Dict[str, str]]] = None
+    parameters: Optional[List[Dict[str, str]]] = None
+    description: Optional[str] = None
+
+class MetadataExtractor:
+    """Extracts metadata from SQL files."""
+    
+    def __init__(self):
+        self._setup_logging()
+        self.patterns = {
+            # Regular tables
+            'table': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Temporary tables
+            'temp_table': re.compile(r'CREATE\s+(?:GLOBAL\s+)?TEMPORARY\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Table variables
+            'table_var': re.compile(r'DECLARE\s+(@\w+)\s+TABLE\s*\((.*?)\)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # CTEs (Common Table Expressions)
+            'cte': re.compile(r'WITH\s+([^\s(]+)\s+AS\s*\((.*?)\)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Views
+            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Procedures
+            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Column definitions
+            'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)\s*(?:CONSTRAINT\s+[^\s,()]+)?(?:DEFAULT\s+[^,)]+)?(?:NULL|NOT\s+NULL)?', re.IGNORECASE),
+            # Foreign keys
+            'foreign_key': re.compile(r'(?:CONSTRAINT\s+\w+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE),
+            # Primary keys
+            'primary_key': re.compile(r'(?:CONSTRAINT\s+\w+\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)', re.IGNORECASE),
+            # Indexes
+            'index': re.compile(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+([^\s(]+)\s+ON\s+([^\s(]+)\s*\((.*?)\)', re.IGNORECASE),
+            # Joins
+            'join': re.compile(r'(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\s+([^\s]+)\s+(?:AS\s+)?(\w+)?(?:\s+ON\s+(.*?))?(?=\s+(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN|\s+WHERE|\s+GROUP|\s+ORDER|\s+HAVING|\s*$)', re.IGNORECASE),
+            'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
+            'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
+        }
+    
+    def _setup_logging(self) -> None:
+        """Configure logging for the metadata extractor."""
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+    
+    def _extract_database_name(self, sql_content: str, table_name: str) -> Optional[str]:
+        """Extract database name from USE statement or fully qualified name.
+        
+        Args:
+            sql_content: Full SQL content
+            table_name: Table name to check for database prefix
+            
+        Returns:
+            Database name if found
+        """
+        # Check for USE DATABASE statement before CREATE TABLE
+        use_db_pattern = re.compile(r'USE\s+(\[?[\w]+\]?)\s*;', re.IGNORECASE)
+        matches = use_db_pattern.finditer(sql_content)
+        last_use_db = None
+        for match in matches:
+            last_use_db = match.group(1).strip('[]')
+            
+        # Check if table name is fully qualified with database
+        if '.' in table_name:
+            parts = table_name.split('.')
+            if len(parts) >= 3:  # [database].[schema].[table]
+                return parts[0].strip('[]')
+            
+        return last_use_db
+
+    def _extract_table_columns(self, create_statement: str) -> List[Dict[str, str]]:
+        """Extract column definitions from CREATE TABLE statement.
+        
+        Args:
+            create_statement: The CREATE TABLE SQL statement
+            
+        Returns:
+            List of column definitions
+        """
+        columns = []
+        # Split on commas but ignore commas inside parentheses
+        parts = re.split(r',(?![^(]*\))', create_statement)
+        
+        for part in parts:
+            part = part.strip()
+            if part and not part.upper().startswith(('PRIMARY KEY', 'FOREIGN KEY', 'CONSTRAINT')):
+                match = self.patterns['column'].search(part)
+                if match:
+                    name, data_type = match.groups()
+                    columns.append({
+                        'name': name.strip(),
+                        'type': data_type.strip()
+                    })
+                    logger.debug(f"Extracted column: {name.strip()} ({data_type.strip()})")
+        
+        return columns
+    
+    def _extract_foreign_keys(self, create_statement: str) -> List[Dict[str, str]]:
+        """Extract foreign key relationships from CREATE TABLE statement.
+        
+        Args:
+            create_statement: The CREATE TABLE SQL statement
+            
+        Returns:
+            List of foreign key relationships
+        """
+        relationships = []
+        matches = self.patterns['foreign_key'].finditer(create_statement)
+        
+        for match in matches:
+            source_cols, target_table, target_cols = match.groups()
+            relationships.append({
+                'source_columns': [col.strip() for col in source_cols.split(',')],
+                'target_table': target_table.strip(),
+                'target_columns': [col.strip() for col in target_cols.split(',')]
+            })
+            
+        return relationships
+
+    def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
+        """Extract metadata from SQL files including tables, views, and procedures.
+        
+        Args:
+            files: List of SQL file paths to analyze
+            
+        Returns:
+            Dictionary containing extracted metadata
+        """
+        if not files:
+            logger.warning("No SQL files provided for metadata extraction")
+            return self._empty_metadata()
+            
+        metadata = {
+            "objects": [],
+            "relationships": [],
+            "schemas": {},
+            "errors": []
+        }
+        
+        for file_path in files:
+            try:
+                file_metadata = self._process_file(file_path)
+                metadata["objects"].extend(file_metadata.get("objects", []))
+                metadata["relationships"].extend(file_metadata.get("relationships", []))
+                metadata["schemas"].update(file_metadata.get("schemas", {}))
+            except Exception as e:
+                logger.error(f"Error processing file {file_path}: {str(e)}", exc_info=True)
+                metadata["errors"].append({
+                    "file": file_path,
+                    "error": str(e)
+                })
+        
+        return self._organize_metadata(metadata)
+    
+    def _process_file(self, file_path: str) -> Dict[str, Any]:
+        """Process a single SQL file and extract its metadata.
+        
+        Args:
+            file_path: Path to the SQL file
+            
+        Returns:
+            Dictionary containing file-specific metadata
+        """
+        file_metadata = {
+            "objects": [],
+            "relationships": [],
+            "schemas": {},
+            "temporary_objects": [],
+            "table_variables": [],
+            "ctes": [],
+            "indexes": [],
+            "joins": [],
+            "constraints": {
+                "primary_keys": [],
+                "foreign_keys": [],
+                "unique": [],
+                "check": []
+            }
+        }
+        
+        logger.info(f"Processing SQL file: {file_path}")
+        
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+            # Handle comments and split into statements more carefully
+            # Keep comments for documentation but mark for parsing
+            content = re.sub(r'--.*$', lambda m: f'/*{m.group(0)}*/', content, flags=re.MULTILINE)
+            
+            # Split on statement terminators while respecting delimiters
+            statements = []
+            current_stmt = []
+            in_string = False
+            in_block = False
+            delimiter = ';'
+            
+            for line in content.splitlines():
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                    
+                # Handle DELIMITER changes
+                if stripped.upper().startswith('DELIMITER'):
+                    if len(stripped.split()) > 1:
+                        delimiter = stripped.split()[1]
+                        continue
+                
+                # Track string literals and block comments
+                for i, char in enumerate(line):
+                    if char == "'" and (i == 0 or line[i-1] != '\\'):
+                        in_string = not in_string
+                    elif not in_string and line[i:i+2] == '/*':
+                        in_block = True
+                    elif not in_string and line[i-1:i+1] == '*/':
+                        in_block = False
+                
+                current_stmt.append(line)
+                
+                # Check for statement terminator
+                if not in_string and not in_block and stripped.endswith(delimiter):
+                    statements.append('\n'.join(current_stmt))
+                    current_stmt = []
+            
+            # Add any remaining statement
+            if current_stmt:
+                statements.append('\n'.join(current_stmt))
+                
+            logger.info(f"Found {len(statements)} SQL statements in {file_path}")
+            
+            # Extract tables
+            for statement in statements:
+                # Normalize statement for parsing
+                normalized_stmt = ' '.join(
+                    line for line in statement.splitlines()
+                    if not line.strip().startswith('--')
+                )
+                
+                # Extract all types of tables and related objects
+                try:
+                    # Regular tables
+                    if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE(?!\s+TEMPORARY)', normalized_stmt, re.IGNORECASE):
+                        self._extract_table(normalized_stmt, file_metadata, content)
+                    
+                    # Temporary tables
+                    if re.search(r'CREATE\s+(?:GLOBAL\s+)?TEMPORARY\s+TABLE', normalized_stmt, re.IGNORECASE):
+                        self._extract_temp_table(normalized_stmt, file_metadata)
+                    
+                    # Table variables
+                    if re.search(r'DECLARE\s+@\w+\s+TABLE', normalized_stmt, re.IGNORECASE):
+                        self._extract_table_var(normalized_stmt, file_metadata)
+                    
+                    # CTEs
+                    if re.search(r'WITH\s+\w+\s+AS\s*\(', normalized_stmt, re.IGNORECASE):
+                        self._extract_cte(normalized_stmt, file_metadata)
+                    
+                    # Indexes
+                    if re.search(r'CREATE\s+(?:UNIQUE\s+)?INDEX', normalized_stmt, re.IGNORECASE):
+                        self._extract_index(normalized_stmt, file_metadata)
+                    
+                    # Joins
+                    joins = self.patterns['join'].finditer(normalized_stmt)
+                    for join in joins:
+                        target_table, alias, condition = join.groups()
+                        file_metadata["joins"].append({
+                            "target_table": target_table.strip(),
+                            "alias": alias.strip() if alias else None,
+                            "condition": condition.strip() if condition else None
+                        })
+                    
+                    # Primary Keys
+                    pk_matches = self.patterns['primary_key'].finditer(normalized_stmt)
+                    for match in pk_matches:
+                        columns = [col.strip() for col in match.group(1).split(',')]
+                        file_metadata["constraints"]["primary_keys"].append({
+                            "columns": columns
+                        })
+                    
+                    # Foreign Keys
+                    fk_matches = self.patterns['foreign_key'].finditer(normalized_stmt)
+                    for match in fk_matches:
+                        source_cols, target_table, target_cols = match.groups()
+                        file_metadata["constraints"]["foreign_keys"].append({
+                            "source_columns": [col.strip() for col in source_cols.split(',')],
+                            "target_table": target_table.strip(),
+                            "target_columns": [col.strip() for col in target_cols.split(',')]
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing table statement: {str(e)}", exc_info=True)
+            
+            # Extract views
+            for statement in statements:
+                if 'CREATE VIEW' in statement.upper():
+                    match = self.patterns['view'].search(statement + ';')
+                    if match:
+                        name, definition = match.groups()
+                        clean_name = name.strip('[] \n\t')
+                        logger.info(f"Processing view: {clean_name}")
+                        sql_object = SQLObject(
+                            type="view",
+                            name=clean_name,
+                            definition=definition.strip(),
+                            source_file=file_path
+                        )
+                        file_metadata["objects"].append(vars(sql_object))
+            
+            # Extract procedures
+            for statement in statements:
+                if 'CREATE PROCEDURE' in statement.upper():
+                    match = self.patterns['procedure'].search(statement + ';')
+                    if match:
+                        name, params, body = match.groups()
+                        clean_name = name.strip('[] \n\t')
+                        logger.info(f"Processing procedure: {clean_name}")
+                        
+                        # Initialize params to empty string if None
+                        params = params if params else ""
+                        parameters = self._parse_procedure_parameters(params)
+                        description = self._extract_procedure_description(body)
+                        
+                        sql_object = SQLObject(
+                            type="procedure",
+                            name=clean_name,
+                            definition=body.strip() if body else "",
+                            source_file=file_path,
+                            parameters=parameters,
+                            description=description
+                        )
+                        file_metadata["objects"].append(vars(sql_object))
+        
+        return file_metadata
+
+    def _parse_procedure_parameters(self, params_str: str) -> List[Dict[str, str]]:
+        """Parse procedure parameters into structured format.
+        
+        Args:
+            params_str: String containing procedure parameters
+            
+        Returns:
+            List of parameter definitions
+        """
+        parameters = []
+        if not params_str.strip():
+            return parameters
+            
+        param_list = params_str.split(',')
+        for param in param_list:
+            parts = param.strip().split()
+            if len(parts) >= 2:
+                param_info = {
+                    'name': parts[0].strip(),
+                    'type': parts[1].strip(),
+                    'mode': 'IN'  # Default mode
+                }
+                
+                # Check for parameter mode (IN/OUT/INOUT)
+                if any(mode in param.upper() for mode in ['IN', 'OUT', 'INOUT']):
+                    for mode in ['IN', 'OUT', 'INOUT']:
+                        if mode in param.upper():
+                            param_info['mode'] = mode
+                            break
+                
+                parameters.append(param_info)
+                
+        return parameters
+
+    def _extract_procedure_description(self, body: str) -> Optional[str]:
+        """Extract procedure description from comments in the body.
+        
+        Args:
+            body: Procedure body text
+            
+        Returns:
+            Extracted description if found
+        """
+        # Look for block comments
+        block_comment_pattern = re.compile(r'/\*(.*?)\*/', re.DOTALL)
+        block_match = block_comment_pattern.search(body)
+        if block_match:
+            return block_match.group(1).strip()
+        
+        # Look for line comments
+        line_comment_pattern = re.compile(r'--\s*(.*?)(?:\n|$)')
+        line_matches = line_comment_pattern.findall(body)
+        if line_matches:
+            return ' '.join(line.strip() for line in line_matches)
+        
+        return None
+
+    def _organize_metadata(self, raw_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Organize raw metadata into a structured format.
+        
+        Args:
+            raw_metadata: Raw metadata extracted from files
+            
+        Returns:
+            Organized metadata dictionary
+        """
+        organized = {
+            "tables": [],
+            "views": [],
+            "procedures": [],
+            "schemas": raw_metadata["schemas"],
+            "relationships": raw_metadata["relationships"],
+            "errors": raw_metadata.get("errors", []),
+            "statistics": self._calculate_statistics(raw_metadata)
+        }
+        
+        # Organize objects by type
+        for obj in raw_metadata["objects"]:
+            if obj["type"] == "table":
+                organized["tables"].append(obj)
+            elif obj["type"] == "view":
+                organized["views"].append(obj)
+            elif obj["type"] == "procedure":
+                organized["procedures"].append(obj)
+        
+        return organized
+
+    def _calculate_statistics(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Calculate various statistics about the extracted metadata.
+        
+        Args:
+            metadata: Raw metadata dictionary
+            
+        Returns:
+            Dictionary of calculated statistics
+        """
+        stats = {
+            "total_objects": len(metadata["objects"]),
+            "object_counts": {
+                "tables": len([obj for obj in metadata["objects"] if obj["type"] == "table"]),
+                "views": len([obj for obj in metadata["objects"] if obj["type"] == "view"]),
+                "procedures": len([obj for obj in metadata["objects"] if obj["type"] == "procedure"])
+            },
+            "relationship_count": len(metadata["relationships"]),
+            "error_count": len(metadata.get("errors", [])),
+            "schema_coverage": len(metadata["schemas"])
+        }
+        
+        return stats
+
+    def _empty_metadata(self) -> Dict[str, Any]:
+        """Create an empty metadata structure.
+        
+        Returns:
+            Empty metadata dictionary
+        """
         return {
             "tables": [],
             "views": [],
             "procedures": [],
             "schemas": {},
-            "view_definitions": {},
-            "procedure_info": {},
             "relationships": [],
-            "raw": [],
-            "error": "No SQL files provided"
+            "errors": [],
+            "statistics": {
+                "total_objects": 0,
+                "object_counts": {
+                    "tables": 0,
+                    "views": 0,
+                    "procedures": 0
+                },
+                "relationship_count": 0,
+                "error_count": 0,
+                "schema_coverage": 0
+            }
         }
-
-    metadata = []
-    relationships = []
-    
-    for file in files:
-        with open(file, 'r') as f:
-            sql_content = f.read()
+    def _extract_table(self, stmt: str, metadata: Dict[str, Any], full_content: str) -> None:
+        """Extract regular table metadata."""
+        match = self.patterns['table'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            clean_name = name.strip('[] \n\t')
+            logger.info(f"Processing table: {clean_name}")
             
-            # Extract tables using regex
-            tables = re.findall(r'CREATE TABLE (\w+)', sql_content)
-            for table in tables:
-                metadata.append({
-                    'type': 'table',
-                    'name': table,
-                    'schema': [],
-                    'source_file': file
-                })
-                relationships.extend([
-                    {
-                        'from_table': table,
-                        'from_column': None,
-                        'to_table': None,
-                        'to_column': None
-                    }
-                ])
+            columns = self._extract_table_columns(definition)
+            relationships = self._extract_foreign_keys(definition)
+            database_name = self._extract_database_name(full_content, clean_name)
             
-            # Extract views using regex
-            views = re.findall(r'CREATE VIEW (\w+) AS', sql_content)
-            for view in views:
-                metadata.append({
-                    'type': 'view',
-                    'name': view,
-                    'definition': '',
-                    'source_file': file
-                })
+            sql_object = SQLObject(
+                type="table",
+                name=clean_name,
+                definition=definition.strip(),
+                source_file=metadata.get("source_file", "unknown"),
+                database=database_name,
+                schema=columns
+            )
             
-            # Extract procedures using regex
-            procedures = re.findall(r'CREATE PROCEDURE (\w+)', sql_content)
-            for proc in procedures:
-                metadata.append({
-                    'type': 'procedure',
-                    'name': proc,
-                    'parameters': [],
-                    'body': '',
-                    'source_file': file,
-                    'description': ''
-                })
-    
-    # Organize metadata into a more structured format
-    return {
-        "tables": [item["name"] for item in metadata if item["type"] == "table"],
-        "views": [item["name"] for item in metadata if item["type"] == "view"],
-        "procedures": [item["name"] for item in metadata if item["type"] == "procedure"],
-        "schemas": {
-            item["name"]: [] for item in metadata if item["type"] == "table"
-        },
-        "view_definitions": {
-            item["name"]: '' for item in metadata if item["type"] == "view"
-        },
-        "procedure_info": {
-            item["name"]: {
-                "parameters": [],
-                "description": '',
-                "body": ''
-            } for item in metadata if item["type"] == "procedure"
-        },
-        "relationships": relationships,
-        "raw": metadata
-    }
+            metadata["objects"].append(vars(sql_object))
+            metadata["relationships"].extend(relationships)
+            metadata["schemas"][clean_name] = columns
 
+    def _extract_temp_table(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract temporary table metadata."""
+        match = self.patterns['temp_table'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            clean_name = name.strip('[] \n\t')
+            columns = self._extract_table_columns(definition)
+            
+            metadata["temporary_objects"].append({
+                "type": "temp_table",
+                "name": clean_name,
+                "columns": columns
+            })
 
+    def _extract_table_var(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract table variable metadata."""
+        match = self.patterns['table_var'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            columns = self._extract_table_columns(definition)
+            
+            metadata["table_variables"].append({
+                "name": name,
+                "columns": columns
+            })
 
-FILE: R:\Projects\sql_agent\sql_agent\streamlit_app.py
-================================================================================
-import streamlit as st
-import os
-import tempfile
-from typing import Dict, List
-import re
-import openai  # Import the openai module
+    def _extract_cte(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract CTE metadata."""
+        match = self.patterns['cte'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            
+            metadata["ctes"].append({
+                "name": name.strip(),
+                "definition": definition.strip()
+            })
 
-from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
-
-def main():
-    st.title("SQL Agent - Query Generation and Execution")
-    st.write("Enter your SQL-related prompt below to generate queries and analyze data.")
-
-    st.sidebar.markdown("### Configuration")
-    
-    # Get OpenAI API key
-    api_key = st.sidebar.text_input(
-        "OpenAI API Key",
-        value=os.getenv('OPENAI_API_KEY', ''),
-        type="password"
-    )
-
-    # Check OpenAI API connectivity
-    if api_key:
-        try:
-            openai.api_key = api_key
-            models = openai.models.list()
-            st.sidebar.success("✅ OpenAI API connection successful")
-            available_models = [model.id for model in models if "gpt" in model.id.lower()]
-            st.sidebar.info(f"Available GPT models: {', '.join(available_models)}")
-        except Exception as e:
-            st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Operation Mode")
-    
-    if not api_key:
-        st.warning("Please enter your OpenAI API key in the sidebar.")
-        return
-
-    # Initialize agent
-    agent = SQLAgentOrchestrator()
-
-    # Fixed data folder path
-    data_folder = "./sql_agent/data"
-
-    # Scan data folder and show stats in sidebar
-    if os.path.exists(data_folder) and os.path.isdir(data_folder):
-        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                    if f.endswith('.sql')]
+    def _extract_index(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract index metadata."""
         
-        st.sidebar.markdown("### Data Files Status")
-        if sql_files:
-            try:
-                metadata = extract_metadata_from_sql_files(sql_files)
-                if not metadata:
-                    st.sidebar.warning("⚠️ No metadata extracted from SQL files")
-                    return
-                st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
-                
-                st.sidebar.markdown("### Knowledge Base Stats")
-                st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
-                st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
-                st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
-                if 'procedure_info' in metadata:
-                    st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
-            except Exception as e:
-                st.sidebar.error(f"Error extracting metadata: {str(e)}")
-                return
-            
-        else:
-            st.sidebar.error("No SQL files found in knowledge base")
-            st.error("No SQL files found in the knowledge base")
-            return
-    else:
-        st.sidebar.error("Knowledge base folder not found")
-        st.error("Knowledge base folder not found")
-        return
-
-    # Query input section
-    user_query = st.text_area(
-        "Enter your natural language query:",
-        height=100
-    )
-
-    if st.button("Generate Query"):
-            if not user_query.strip():
-                st.warning("Please enter a valid query or prompt.")
-                return
-
-            try:
-                # Use the already extracted metadata
-                sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
-                           if f.endswith('.sql')]
-                metadata = extract_metadata_from_sql_files(sql_files)
-
-                # Initialize agent steps display
-                st.markdown("### 🤖 SQL Agent Workflow")
-                steps = {
-                    "parse_intent": "1️⃣ Parse User Intent",
-                    "find_relevant_content": "2️⃣ Find Relevant Content",
-                    "generate_query": "3️⃣ Generate SQL Query",
-                    "validate_query": "4️⃣ Validate Query"
-                }
-                
-                # Process query and show each step
-                result, usage_stats = agent.process_query(user_query, metadata)
-                
-                # Display each agent's interaction
-                for step_name, step_data in result["agent_interactions"].items():
-                    with st.expander(f"🤖 {steps[step_name]}", expanded=True):
-                        st.markdown("**System Prompt:**")
-                        st.code(step_data["system_prompt"])
-                        st.markdown("**User Prompt:**")
-                        st.code(step_data["user_prompt"])
-                        st.markdown("**Result:**")
-                        st.code(step_data["result"])
-                
-                # Display final results
-                if result.get("similarity_search"):
-                    with st.expander("📊 Similarity Search Results"):
-                        st.markdown("### Top Matching Chunks:")
-                        for idx, (score, chunk) in enumerate(result["similarity_search"], 1):
-                            st.markdown(f"**Match {idx}** (Score: {score:.3f})")
-                            st.code(chunk, language="sql")
-                
-                # Display final query with formatting
-                st.markdown("### 📝 Final Generated Query")
-                if result["generated_query"].startswith('ERROR:'):
-                    error_msg = result["generated_query"].split('\n')
-                    st.error(error_msg[0])
-                    if metadata:
-                        with st.expander("Available Database Objects"):
-                            if metadata.get('tables'):
-                                st.markdown("**Tables:**")
-                                for table in metadata['tables']:
-                                    st.markdown(f"- `{table}`")
-                            if metadata.get('views'):
-                                st.markdown("**Views:**")
-                                for view in metadata['views']:
-                                    st.markdown(f"- `{view}`")
-                            if metadata.get('procedures'):
-                                st.markdown("**Procedures:**")
-                                for proc in metadata['procedures']:
-                                    st.markdown(f"- `{proc}`")
-                else:
-                    st.code(result["generated_query"], language="sql")
-                
-                # Show usage statistics
-                with st.expander("📊 Usage Statistics"):
-                    tokens = usage_stats["tokens"]
-                    st.info(
-                        f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"
-                        f"Cost: ${usage_stats['cost']:.2f} for this query"
-                    )
-
-                # Display error details if any
-                if result.get("available_objects"):
-                    with st.expander("Show available database objects"):
-                        st.text(result["available_objects"])
-
-                # Display relevant files content
-                if result.get("relevant_files"):
-                    st.markdown("### 📑 File Contents")
-                    relevant_files_content = []
-                    for file_path in result["relevant_files"]:
-                        try:
-                            with open(file_path, 'r') as f:
-                                relevant_files_content.append((os.path.basename(file_path), f.read()))
-                        except Exception as e:
-                            relevant_files_content.append((os.path.basename(file_path), f"Error reading file: {str(e)}"))
-                            
-                    for filename, content in relevant_files_content:
-                        with st.expander(f"📄 {filename}"):
-                            if content.startswith("Error"):
-                                st.error(content)
-                            else:
-                                st.code(content, language="sql")
-
-            except Exception as e:
-                st.error(f"Error processing query: {str(e)}")
-                st.exception(e)  # Show detailed error for debugging
-
-if __name__ == "__main__":
-    main()
-
-
-
-FILE: R:\Projects\sql_agent\sql_agent\visualization.py
-================================================================================
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-
-class SimilaritySearchResultPlot:
-    """Helper class for visualizing similarity search results"""
-    
-    def __init__(self, query_vector: List[float], metadata_vectors: List[List[float]], 
-                 similarity_threshold: float = 0.7):
-        self.query_vector = query_vector
-        self.similarities = []
-        self.metadata_vectors = metadata_vectors
-        self.similarity_threshold = similarity_threshold
-        
-        # Calculate similarities between query vector and each metadata vector
-        for vec in metadata_vectors:
-            sim = self._calculate_cosine_similarity(query_vector, vec)
-            self.similarities.append(sim)
-            
-    def _calculate_cosine_similarity(self, a: List[float], b: List[float]) -> float:
-        """Calculate cosine similarity between two vectors."""
-        dot_product = sum(a[i] * b[i] for i in range(len(a)))
-        norm_a = math.sqrt(sum(num ** 2 for num in a))
-        norm_b = math.sqrt(sum(num ** 2 for num in b))
-        
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-            
-        return dot_product / (norm_a * norm_b)
-    
-    def create_visualization(self) -> go.Figure:
-        """Create a visualization of similarity scores"""
-        fig = make_subplots(rows=1, cols=2, subplot_titles=["Query Embedding", "Metadata Vectors"])
-
-        # Plot query embedding
-        fig.add_trace(go.Scatter(x=[0], y=self.query_vector, name="Query Vector"), row=1, col=1)
-        
-        # Plot metadata vectors
-        for i, vec in enumerate(self.metadata_vectors):
-            x = [i+1] * len(vec)
-            y = vec
-            fig.add_trace(go.Scatter(x=x, y=y, name=f"Metadata {i+1}"), row=1, col=2)
-
-        # Add cosine similarity labels
-        for i, sim in enumerate(self.similarities):
-            x_coord = i + 2
-            y_coord = max(self.query_vector) * 0.9
-            
-            fig.add_annotation(x=x_coord, y=y_coord, text=f"Similarity: {sim:.4f}", showarrow=False)
-
-        return fig
-        
-def cosine_similarity_matrix(metadata_vectors: List[List[float]], 
-                           similarity_threshold: float = 0.7) -> dict:
-    """Calculate and visualize cosine similarity matrix"""
-    similarities = []
-    
-    for i in range(len(metadata_vectors)):
-        vec_i = metadata_vectors[i]
-        sims = {}
-        for j in range(i+1, len(metadata_vectors)):
-            vec_j = metadata_vectors[j]
-            sim = _calculate_cosine_similarity(vec_i, vec_j)
-            sims[j] = sim
-            
-            if sim >= similarity_threshold:
-                sims[j] = {'similarity': sim, 'highlight': True}
-        
-        similarities.append(sims)
-    
-    return similarities
-
-
-
-FILE: R:\Projects\sql_agent\sql_agent\utils\regex_search.py
-================================================================================
-import re
-from typing import Dict, List, Optional
-
-def search_sql_content(content: str) -> Dict[str, List[str]]:
-    """Search SQL content using regex patterns for various database objects.
-    
-    Args:
-        content: The SQL query or schema definition to analyze
-        
-    Returns:
-        Dictionary with found objects by type
-    """
-    # Common pattern components
-    identifier_pattern = r'\b(?:[A-Za-z_]\w*)+\b'  # Matches valid SQL identifiers
-    
-    # Tables
-    table_create_pattern = re.compile(r'\bCREATE\s+TABLE\b', re.IGNORECASE)
-    tables = re.findall(identifier_pattern, content[table_create_pattern.search(content):])
-    
-    # Views
-    view_create_pattern = re.compile(r'\bCREATE\s+VIEW\b', re.IGNORECASE)
-    views = re.findall(identifier_pattern, content[view_create_pattern.search(content):])
-    
-    # Procedures
-    proc_create_pattern = re.compile(r'\bCREATE\s+PROCEDURE\b', re.IGNORECASE)
-    procedures = re.findall(identifier_pattern, content[proc_create_pattern.search(content):])
-    
-    # Columns
-    column_patterns = [
-        r'\bALTER\s+TABLE\b',  # Existing columns through ALTER TABLE
-        r'\bCREATE\s+INDEX\b'   # Indexed columns
-    ]
-    columns = []
-    for pattern in column_patterns:
-        idx = content.find(pattern)
-        if idx != -1:
-            cols = re.findall(identifier_pattern, content[idx:])
-            columns.extend(cols)
-    
-    # Primary Keys
-    pk_pattern = r'\bPRIMARY\s+KEY\b'
-    pks = re.findall(identifier_pattern, content[pk_pattern.search(content):])
-    
-    # Foreign Keys
-    fk_pattern = r'\bFOREIGN\s+KEY\b'
-    fks = re.findall(identifier_pattern, content[fk_pattern.search(content):])
-    
-    # Indexes
-    index_patterns = [
-        r'\bCREATE\s+INDEX\b',
-        r'\bUNIQUE\s+CONSTRAINT\b'  # Unique indexes through constraints
-    ]
-    indexes = []
-    for pattern in index_patterns:
-        idx = content.find(pattern)
-        if idx != -1:
-            index_cols = re.findall(identifier_pattern, content[idx:])
-            indexes.extend(index_cols)
-    
-    return {
-        'tables': list(set(tables)),
-        'views': list(set(views)),
-        'procedures': list(set(procedures)),
-        'columns': list(set(columns)),
-        'primary_keys': list(set(pks)),
-        'foreign_keys': list(set(fks)),
-        'indexes': list(set(indexes))
-    }
-
-
-
-FILE: R:\Projects\sql_agent\tests\conftest.py
-================================================================================
-import pytest
-import sqlite3
-import logging
-from unittest.mock import Mock
-
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-@pytest.fixture
-def mock_db_connection():
-    """Create mock database connection for testing"""
-    conn = Mock()
-    cur = Mock()
-    conn.cursor.return_value = cur
-    return conn, cur
-
-@pytest.fixture
-def in_memory_db():
-    """Create in-memory SQLite database for testing"""
-    conn = sqlite3.connect(":memory:")
-    cur = conn.cursor()
-    yield conn, cur
-    conn.close()
-
-
-
-FILE: R:\Projects\sql_agent\tests\test_sql_agent.py
-================================================================================
-import pytest
-from unittest.mock import Mock
-from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator  # Import necessary module
-
-def test_metadata_extraction(mock_db_connection):
-    """Test metadata extraction from SQL files"""
-    
-    conn, cur = mock_db_connection
-    
-    # Mock SQL file content
-    sql_content = """
-    CREATE TABLE sales (
-        id INTEGER PRIMARY KEY,
-        date DATE,
-        amount DECIMAL(10,2)
-    );
-    """
-    
-    # Import necessary modules
-    import re
-    from typing import List, Dict, Any
-    
-    # Extract tables using regex search
-    agent = SQLAgentOrchestrator()
-    extracted_tables = agent.extract_metadata(sql_content)
-    
-    assert len(extracted_tables) == 1
-    
-def test_query_generation():
-    """Test query generation using regex search"""
-    
-    assert True  # Implement later with regex-based query generation
-

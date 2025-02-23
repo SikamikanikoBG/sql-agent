@@ -1,27 +1,28 @@
 CODEBASE SUMMARY:
-This project contains 11 files:
+This project contains 15 files:
 File types: 
-Total lines of code: 928
-Average file size: 84.4 lines
-Overall complexity: 173
+Total lines of code: 2931
+Average file size: 195.4 lines
+Overall complexity: 641
 
 KEY INSIGHTS:
-- Project contains 11 analyzable files
-- Found 2 complex functions that might need attention
+- Project contains 15 analyzable files
+- Good documentation coverage (91.9%)
+- Found 13 complex functions that might need attention
 
 CODE METRICS:
-Functions: 13 (11 documented, 2 complex)
-Classes: 2 (1 documented)
+Functions: 64 (59 documented, 13 complex)
+Classes: 10 (9 documented)
 Documentation coverage: 0.0%
-Total imports: 35 (18 unique)
+Total imports: 82 (43 unique)
 
 PROJECT STRUCTURE AND CODE INSIGHTS:
 
 ================================================================================
-R:/Projects/sql_agent/ (15 lines)
+R:/Projects/sql_agent/ (34 lines)
 ================================================================================
   setup.py
-    Lines: 15
+    Lines: 34
     Complexity: 0
 
     IMPORTS:
@@ -30,124 +31,436 @@ R:/Projects/sql_agent/ (15 lines)
 
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/ (398 lines)
+R:/Projects/sql_agent/sql_agent/ (1924 lines)
 ================================================================================
   extract_metadata_from_sql_files.py
-    Lines: 57
-    Complexity: 12
+    Lines: 91
+    Complexity: 28
 
 CLASSES:
   SQLAgentOrchestrator:
-    Line: 4
+    Line: 5
     Instance methods: extract_metadata, extract_metadata_from_sql_files
 
 FUNCTIONS:
   extract_metadata:
-    Line: 5
+    Line: 6
     Args: sql_content: str
     Returns: Dict[Tuple[str, Any]]
     Doc: Extract metadata from SQL content including tables
-    Complexity: 3
+    Complexity: 6
   extract_metadata_from_sql_files:
-    Line: 20
+    Line: 53
     Args: files: List[str]
     Returns: Dict[Tuple[str, Any]]
     Doc: Extract metadata from SQL files
-    Complexity: 3
+    Complexity: 8
 
     IMPORTS:
       from typing import Any
       from typing import Dict
       from typing import List
+      import logging
       import re
 
-  metadata_extractor.py
-    Lines: 86
-    Complexity: 6
-
-FUNCTIONS:
-  extract_metadata_from_sql_files:
-    Line: 4
-    Args: files: List[str]
-    Returns: Dict[Tuple[str, Any]]
-    Doc: Extract metadata from SQL files including tables.
-    Complexity: 6
-
-    IMPORTS:
-      from typing import Any
-      from typing import Dict
-      from typing import List
-      import re
-
-  streamlit_app.py
-    Lines: 185
-    Complexity: 30
-
-FUNCTIONS:
-  main:
-    Line: 10
-    Complexity: 30
-
-    IMPORTS:
-      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
-      from typing import Dict
-      from typing import List
-      import openai
-      import os
-      import re
-      import streamlit
-      import tempfile
-
-  visualization.py
-    Lines: 70
-    Complexity: 18
+  gradio_app.py
+    Lines: 246
+    Complexity: 38
 
 CLASSES:
-  SimilaritySearchResultPlot:
-    Line: 4
-    Doc: Helper class for visualizing similarity search results
-    Instance methods: __init__, _calculate_cosine_similarity, create_visualization
+  SQLAgentGradioApp:
+    Line: 15
+    Doc: Gradio application for SQL query generation and analysis.
+    Instance methods: __init__, _initialize_data, process_query
 
 FUNCTIONS:
   __init__:
-    Line: 7
-    Args: query_vector: List[float], metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Line: 18
+    Complexity: 1
+  _initialize_data:
+    Line: 25
+    Args: data_folder: str = './sql_agent/data'
+    Returns: None
+    Doc: Initialize data and vector store once at startup
+    Complexity: 5
+  process_query:
+    Line: 50
+    Args: api_key: str, query: str, model: str, temperature: float
+    Returns: Tuple[Tuple[str, str, str, str, str]]
+    Doc: Process a query and return results
+    Complexity: 12
+  create_gradio_interface:
+    Line: 123
+    Doc: Create and configure the Gradio interface
+    Complexity: 1
+  main:
+    Line: 236
+    Complexity: 1
+
+    IMPORTS:
+      from pathlib import Path
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from sql_agent.metadata_extractor import MetadataExtractor
+      from sql_agent.visualization import SimilaritySearchResultPlot
+      from typing import Dict
+      from typing import Optional
+      from typing import Tuple
+      import gradio
+      import logging
+      import openai
+      import os
+
+  langgraph_orchestrator.py
+    Lines: 762
+    Complexity: 166
+
+CLASSES:
+  QueryResult:
+    Line: 20
+    Doc: Represents the result of a query processing operation.
+  UsageStats:
+    Line: 32
+    Doc: Tracks token usage and cost statistics.
+  SQLAgentOrchestrator:
+    Line: 39
+    Doc: Orchestrates SQL query generation and processing using LangChain.
+    Instance methods: __init__, _setup_components, _setup_logging, _setup_chains, process_query, _find_similar_examples, _format_metadata, _format_examples, _parse_validation_result, _update_usage_stats, initialize_vector_store, extract_metadata, extract_metadata_from_sql_files
+
+FUNCTIONS:
+  __init__:
+    Line: 42
+    Args: model_name: str = 'gpt-3.5-turbo', temperature: float = 0.0, similarity_threshold: float = 0.3, max_examples: int = 10
+    Doc: Initialize the SQL Agent Orchestrator.
+    Complexity: 1
+  _setup_components:
+    Line: 69
+    Returns: None
+    Doc: Initialize LangChain components.
+    Complexity: 1
+  _setup_logging:
+    Line: 91
+    Returns: None
+    Doc: Configure logging for the orchestrator.
+    Complexity: 1
+  _setup_chains:
+    Line: 98
+    Returns: None
+    Doc: Set up LangChain processing chains.
+    Complexity: 1
+  process_query:
+    Line: 186
+    Args: query: str, metadata: Dict, sql_files: Optional[List[str]] = None
+    Returns: Tuple[Tuple[QueryResult, UsageStats]]
+    Doc: Process a user's natural language query and generate an SQL query.
+    Complexity: 20
+  _find_similar_examples:
+    Line: 353
+    Args: query: str
+    Returns: Tuple[Tuple[List[Tuple[Tuple[float, str]]], List[float], List[List[float]]]]
+    Doc: Find similar SQL examples from the vector store.
+    Complexity: 9
+  _format_metadata:
+    Line: 424
+    Args: metadata: Dict
+    Returns: str
+    Doc: Format metadata for prompt templates.
+    Complexity: 15
+  _format_examples:
+    Line: 483
+    Args: examples: List[Tuple[Tuple[float, str]]]
+    Returns: str
+    Doc: Format similar examples for prompt templates.
+    Complexity: 4
+  _parse_validation_result:
+    Line: 515
+    Args: validation_result: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Parse validation result into structured format.
     Complexity: 2
+  _update_usage_stats:
+    Line: 538
+    Args: response
+    Returns: None
+    Doc: Update usage statistics from LLM interactions.
+    Complexity: 6
+  initialize_vector_store:
+    Line: 580
+    Args: sql_files: List[str]
+    Returns: None
+    Doc: Initialize the vector store with SQL examples.
+    Decorators: prevent_rerun(...)
+    Complexity: 9
+  extract_metadata:
+    Line: 646
+    Args: sql_content: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from MS SQL content including tables and their relationships.
+    Complexity: 8
+  extract_metadata_from_sql_files:
+    Line: 707
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from a list of SQL files.
+    Complexity: 6
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from langchain.prompts import PromptTemplate
+      from langchain.schema import HumanMessage
+      from langchain.schema import SystemMessage
+      from langchain.schema.runnable import RunnableSequence
+      from langchain.text_splitter import RecursiveCharacterTextSplitter
+      from langchain_community.vectorstores import FAISS
+      from langchain_openai import ChatOpenAI
+      from langchain_openai import OpenAIEmbeddings
+      from pathlib import Path
+      from sql_agent.utils.decorators import prevent_rerun
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      from typing import Tuple
+      import json
+      import logging
+      import re
+      import streamlit
+
+  metadata_extractor.py
+    Lines: 553
+    Complexity: 152
+
+CLASSES:
+  SQLObject:
+    Line: 10
+    Doc: Represents a SQL database object.
+  MetadataExtractor:
+    Line: 21
+    Doc: Extracts metadata from SQL files.
+    Instance methods: __init__, _setup_logging, _extract_database_name, _extract_table_columns, _extract_foreign_keys, extract_metadata_from_sql_files, _process_file, _parse_procedure_parameters, _extract_procedure_description, _organize_metadata, _calculate_statistics, _empty_metadata, _extract_table, _extract_temp_table, _extract_table_var, _extract_cte, _extract_index
+
+FUNCTIONS:
+  __init__:
+    Line: 24
+    Complexity: 1
+  _setup_logging:
+    Line: 53
+    Returns: None
+    Doc: Configure logging for the metadata extractor.
+    Complexity: 1
+  _extract_database_name:
+    Line: 60
+    Args: sql_content: str, table_name: str
+    Returns: Optional[str]
+    Doc: Extract database name from USE statement or fully qualified name.
+    Complexity: 4
+  _extract_table_columns:
+    Line: 85
+    Args: create_statement: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract column definitions from CREATE TABLE statement.
+    Complexity: 5
+  _extract_foreign_keys:
+    Line: 112
+    Args: create_statement: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract foreign key relationships from CREATE TABLE statement.
+    Complexity: 2
+  extract_metadata_from_sql_files:
+    Line: 134
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files including tables, views, and procedures.
+    Complexity: 4
+  _process_file:
+    Line: 169
+    Args: file_path: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Process a single SQL file and extract its metadata.
+    Complexity: 32
+  _parse_procedure_parameters:
+    Line: 346
+    Args: params_str: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Parse procedure parameters into structured format.
+    Complexity: 7
+  _extract_procedure_description:
+    Line: 380
+    Args: body: str
+    Returns: Optional[str]
+    Doc: Extract procedure description from comments in the body.
+    Complexity: 3
+  _organize_metadata:
+    Line: 403
+    Args: raw_metadata: Dict[Tuple[str, Any]]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Organize raw metadata into a structured format.
+    Complexity: 5
+  _calculate_statistics:
+    Line: 433
+    Args: metadata: Dict[Tuple[str, Any]]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Calculate various statistics about the extracted metadata.
+    Complexity: 1
+  _empty_metadata:
+    Line: 456
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Create an empty metadata structure.
+    Complexity: 1
+  _extract_table:
+    Line: 481
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]], full_content: str
+    Returns: None
+    Doc: Extract regular table metadata.
+    Complexity: 2
+  _extract_temp_table:
+    Line: 506
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract temporary table metadata.
+    Complexity: 2
+  _extract_table_var:
+    Line: 520
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract table variable metadata.
+    Complexity: 2
+  _extract_cte:
+    Line: 532
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract CTE metadata.
+    Complexity: 2
+  _extract_index:
+    Line: 543
+    Args: stmt: str, metadata: Dict[Tuple[str, Any]]
+    Returns: None
+    Doc: Extract index metadata.
+    Complexity: 2
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from pathlib import Path
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      from typing import Tuple
+      import logging
+      import re
+
+  visualization.py
+    Lines: 272
+    Complexity: 28
+
+CLASSES:
+  SimilaritySearchResultPlot:
+    Line: 7
+    Doc: Helper class for visualizing similarity search results
+    Instance methods: __init__, _calculate_cosine_similarity, create_visualization, _add_3d_scatter, _add_similarity_bars, _add_dimension_heatmap, _add_similarity_matrix
+
+FUNCTIONS:
+  __init__:
+    Line: 10
+    Args: query_vector: List[float], metadata_vectors: List[List[float]], labels: Optional[List[str]] = None, similarity_threshold: float = 0.7
+    Doc: Initialize the similarity search result visualization.
+    Complexity: 1
   _calculate_cosine_similarity:
-    Line: 19
+    Line: 34
     Args: a: List[float], b: List[float]
     Returns: float
     Doc: Calculate cosine similarity between two vectors.
-    Complexity: 2
-  create_visualization:
-    Line: 30
-    Returns: go.Figure
-    Doc: Create a visualization of similarity scores
     Complexity: 3
-  cosine_similarity_matrix:
-    Line: 52
-    Args: metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
-    Returns: dict
-    Doc: Calculate and visualize cosine similarity matrix
+  create_visualization:
+    Line: 56
+    Args: title: str = 'Similarity Search Results', height: int = 600, width: int = 1000
+    Returns: go.Figure
+    Doc: Create an interactive visualization of similarity scores.
+    Complexity: 1
+  _add_3d_scatter:
+    Line: 106
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add 3D scatter plot of vectors to the figure.
+    Complexity: 2
+  _add_similarity_bars:
+    Line: 146
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add bar chart of similarity scores to the figure.
+    Complexity: 1
+  _add_dimension_heatmap:
+    Line: 189
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add heatmap of vector dimensions to the figure.
+    Complexity: 1
+  _add_similarity_matrix:
+    Line: 204
+    Args: fig: go.Figure
+    Returns: None
+    Doc: Add similarity matrix heatmap to the figure.
+    Complexity: 3
+  create_similarity_matrix:
+    Line: 226
+    Args: vectors: List[List[float]], labels: Optional[List[str]] = None, similarity_threshold: float = 0.7
+    Returns: go.Figure
+    Doc: Create a standalone similarity matrix visualization.
     Complexity: 4
 
     IMPORTS:
       from plotly.subplots import make_subplots
+      from sklearn.decomposition import PCA
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      import math
+      import numpy
       import plotly.graph_objects
 
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/data/ (392 lines)
+R:/Projects/sql_agent/sql_agent/data/ (606 lines)
 ================================================================================
   q1.sql
-    Lines: 34
+    Lines: 3
     Complexity: 0
 
+    COMMENTS:
+      Line 1: Example SQL file
+      Line 2: Add your SQL schema and data files to this directory
+      Line 3: The agent will analyze them to understand your database structure
+
+  s2.sql
+    Lines: 101
+    Complexity: 25
+
+    PROCEDURE:
+      Name: spGenerateEmployeePerformanceReport
+
+    PARAMETERS:
+      @DepartmentId (INT, default=NULL)
+      @EndDate (DATE)
+      @MinSalesAmount (DECIMAL(18)
+      @StartDate (DATE)
+
     DEPENDENCIES:
-      employees
-      large
-      projects
-      sales
+      Customers
+      Departments
+      Employees
+      RankCTE
+      Sales
+      performance
+      t
+      temp
+
+    COMMENTS:
+      Line 10: Error handling
+      Line 17: Temporary table to store results
+      Line 30: Insert data into temp table
+      Line 61: Update performance ranking
+      Line 73: Return final results
+      Line 91: Cleanup
+      Line 96: Example usage:
 
   transactions.sql
     Lines: 358
@@ -241,49 +554,215 @@ $$;
       Line 351: OUT parameter
       Line 352: OUT parameter
 
+  v1.sql
+    Lines: 53
+    Complexity: 26
+
+    VIEW:
+      Name: vw_OrderDetails
+
+    DEPENDENCIES:
+      Categories
+      Customers
+      Employees
+      Orders
+      Products
+      Shippers
+      Suppliers
+      vw_OrderDetails
+
+    COMMENTS:
+      Line 1: Create a view that shows order details with customer and product information
+      Line 33: Last 2 years of orders
+      Line 36: Example usage of the view
+
+  v2.sql
+    Lines: 91
+    Complexity: 32
+
+    VIEW:
+      Name: vw_EmployeePerformance
+
+    DEPENDENCIES:
+      Attendance
+      Departments
+      EmployeeCertifications
+      EmployeeTraining
+      Employees
+      Locations
+      PerformanceReviews
+      Positions
+      ProjectAssignments
+      Salaries
+      vw_EmployeePerformance
+
+    COMMENTS:
+      Line 1: Create a view for Employee Performance Analytics
+      Line 13: Salary and compensation
+      Line 17: Performance metrics
+      Line 20: Project involvement
+      Line 23: Training and certifications
+      Line 26: Attendance
+      Line 31: Calculate attendance rate
+      Line 33: Calculate years of service
+      Line 35: Latest performance review comments
+      Line 37: Department metrics
+      Line 40: Calculate cost to department
+      Line 73: Example usage of the view
+
 
 ================================================================================
-R:/Projects/sql_agent/sql_agent/utils/ (68 lines)
+R:/Projects/sql_agent/sql_agent/utils/ (182 lines)
 ================================================================================
-  regex_search.py
-    Lines: 68
-    Complexity: 5
+  decorators.py
+    Lines: 32
+    Complexity: 9
 
 FUNCTIONS:
-  search_sql_content:
-    Line: 4
-    Args: content: str
-    Returns: Dict[Tuple[str, List[str]]]
-    Doc: Search SQL content using regex patterns for various database objects.
-    Complexity: 5
+  prevent_rerun:
+    Line: 5
+    Args: timeout: int = 60
+    Doc: Decorator to prevent re-running a function within the specified timeout period.
+    Complexity: 3
+  decorator:
+    Line: 11
+    Args: func: Callable
+    Returns: Callable
+    Complexity: 3
+  wrapper:
+    Line: 16
+    Args: **args: Any, ****kwargs: Any
+    Returns: Any
+    Decorators: wraps(...)
+    Complexity: 3
 
     IMPORTS:
+      from functools import wraps
+      from typing import Any
+      from typing import Callable
+      import time
+
+  regex_search.py
+    Lines: 150
+    Complexity: 31
+
+CLASSES:
+  SQLPattern:
+    Line: 9
+    Doc: Represents a regex pattern for SQL object detection.
+    Instance methods: compile, search
+  SQLRegexSearcher:
+    Line: 28
+    Doc: Class for searching SQL content using regex patterns.
+    Instance methods: __init__, _setup_logging, add_pattern, search_sql_content, batch_search, extract_relationships
+
+FUNCTIONS:
+  compile:
+    Line: 17
+    Returns: Pattern
+    Doc: Compile the regex pattern.
+    Complexity: 2
+  search:
+    Line: 23
+    Args: content: str
+    Returns: List[str]
+    Doc: Search content using the pattern.
+    Complexity: 1
+  __init__:
+    Line: 31
+    Doc: Initialize the searcher with predefined patterns.
+    Complexity: 1
+  _setup_logging:
+    Line: 87
+    Returns: None
+    Doc: Configure logging for the searcher.
+    Complexity: 1
+  add_pattern:
+    Line: 94
+    Args: name: str, pattern: str, flags: int = Union[re.IGNORECASE, re.MULTILINE], description: str = ''
+    Returns: None
+    Doc: Add a new search pattern.
+    Complexity: 1
+  search_sql_content:
+    Line: 100
+    Args: content: str, pattern_names: Optional[List[str]] = None
+    Returns: Dict[Tuple[str, List[str]]]
+    Doc: Search SQL content using specified patterns.
+    Complexity: 6
+  batch_search:
+    Line: 128
+    Args: contents: List[str], pattern_names: Optional[List[str]] = None
+    Returns: List[Dict[Tuple[str, List[str]]]]
+    Doc: Search multiple SQL contents using specified patterns.
+    Complexity: 1
+  extract_relationships:
+    Line: 132
+    Args: content: str
+    Returns: List[Dict[Tuple[str, str]]]
+    Doc: Extract table relationships from SQL content.
+    Complexity: 2
+  get_default_searcher:
+    Line: 148
+    Returns: SQLRegexSearcher
+    Doc: Get a preconfigured instance of SQLRegexSearcher.
+    Complexity: 1
+
+    IMPORTS:
+      from dataclasses import dataclass
+      from dataclasses import field
       from typing import Dict
       from typing import List
       from typing import Optional
+      from typing import Pattern
+      import logging
       import re
 
 
 ================================================================================
-R:/Projects/sql_agent/tests/ (55 lines)
+R:/Projects/sql_agent/tests/ (185 lines)
 ================================================================================
   conftest.py
-    Lines: 23
-    Complexity: 2
+    Lines: 153
+    Complexity: 6
 
 FUNCTIONS:
+  sample_sql_files:
+    Line: 17
+    Args: tmp_path: Path
+    Returns: Generator[Tuple[Path, None, None]]
+    Doc: Create temporary SQL files for testing.
+    Decorators: pytest.fixture
+    Complexity: 2
   mock_db_connection:
-    Line: 10
-    Doc: Create mock database connection for testing
+    Line: 61
+    Returns: Tuple[Tuple[Mock, Mock]]
+    Doc: Create mock database connection for testing.
     Decorators: pytest.fixture
     Complexity: 1
   in_memory_db:
-    Line: 18
-    Doc: Create in-memory SQLite database for testing
+    Line: 73
+    Returns: Generator[Tuple[Tuple[Tuple[sqlite3.Connection, sqlite3.Cursor]], None, None]]
+    Doc: Create in-memory SQLite database for testing.
+    Decorators: pytest.fixture
+    Complexity: 1
+  mock_openai_response:
+    Line: 111
+    Returns: Mock
+    Doc: Create mock OpenAI API response.
+    Decorators: pytest.fixture
+    Complexity: 1
+  sample_metadata:
+    Line: 123
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Create sample metadata for testing.
     Decorators: pytest.fixture
     Complexity: 1
 
     IMPORTS:
+      from _pytest.fixtures import FixtureRequest
+      from pathlib import Path
+      from typing import Generator
+      from typing import Tuple
       from unittest.mock import Mock
       import logging
       import pytest

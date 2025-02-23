@@ -1,19 +1,105 @@
 # SQL Agent
 
-An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language. Features both Streamlit and Gradio interfaces for maximum flexibility.
+An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language, leveraging RAG (Retrieval Augmented Generation) for context-aware query generation.
 
 ## Features
 
 - 🤖 Natural language to SQL query conversion
 - 📊 Multi-database support with proper schema handling
-- 🔍 Context-aware query generation using similar examples
+- 🔍 RAG-powered context-aware query generation
 - 📝 Detailed query validation and optimization
 - 📈 Token usage and cost tracking
 - 🎯 Vector similarity search for relevant examples
 - 🧠 Advanced MS SQL Server features support
-- 🎨 Choice of user interfaces:
-  - Streamlit: Full-featured dashboard
-  - Gradio: Simple, elegant interface
+- 🎨 Elegant Gradio interface
+
+## Screenshots
+
+![Tab 1](media/tab1.png)
+![Tab 2](media/tab2.png)
+![Tab 3](media/tab3.png)
+![Tab 4](media/tab4.png)
+
+## Project Structure
+
+```
+sql_agent/
+├── sql_agent/              # Main package directory
+│   ├── data/              # SQL example files
+│   │   ├── q1.sql        # Example queries
+│   │   ├── s2.sql        # Stored procedures
+│   │   ├── transactions.sql # Transaction examples
+│   │   ├── v1.sql        # View definitions
+│   │   └── v2.sql        # Additional views
+│   ├── utils/            # Utility modules
+│   │   ├── decorators.py # Function decorators
+│   │   └── regex_search.py # SQL parsing utilities
+│   ├── extract_metadata.py  # SQL metadata extraction
+│   ├── gradio_app.py     # Gradio web interface
+│   ├── langgraph_orchestrator.py # Main RAG pipeline
+│   ├── metadata_extractor.py # SQL schema analysis
+│   └── visualization.py   # Similarity visualizations
+├── tests/                # Test suite
+├── LICENSE              # MIT License
+├── README.md           # Project documentation
+├── requirements.txt    # Python dependencies
+└── setup.py           # Package configuration
+```
+
+## Core Components
+
+### 1. LangGraph Orchestrator (`langgraph_orchestrator.py`)
+- Manages the entire RAG pipeline
+- Coordinates between vector store, LLM, and metadata components
+- Implements the three-stage query processing:
+  1. Intent Analysis: Understanding user's natural language query
+  2. Query Generation: Converting intent to SQL
+  3. Query Validation: Ensuring SQL correctness
+
+### 2. Metadata Extractor (`metadata_extractor.py`)
+- Analyzes SQL files to understand database schema
+- Extracts:
+  - Table definitions and relationships
+  - View definitions
+  - Stored procedures
+  - Column types and constraints
+  - Foreign key relationships
+
+### 3. Gradio Interface (`gradio_app.py`)
+- Provides intuitive web interface
+- Features:
+  - Query input with model selection
+  - Generated SQL display
+  - Query analysis explanation
+  - Similar examples showcase
+  - Usage statistics
+  - Agent interaction logs
+
+### 4. Vector Store and RAG Implementation
+The project uses FAISS for vector similarity search and implements RAG in several steps:
+
+1. **Indexing Phase:**
+   - SQL examples are split into chunks
+   - Each chunk is embedded using OpenAI embeddings
+   - Embeddings are stored in FAISS vector store
+
+2. **Retrieval Phase:**
+   - User query is embedded
+   - Similar SQL examples are retrieved
+   - Metadata about database schema is collected
+
+3. **Generation Phase:**
+   - Retrieved examples and metadata augment the prompt
+   - LLM generates SQL based on enriched context
+   - Generated SQL is validated against schema
+
+### 5. Visualization (`visualization.py`)
+- Creates interactive visualizations of similarity search results
+- Includes:
+  - 3D scatter plots of vector spaces
+  - Similarity score heatmaps
+  - Dimension analysis
+  - Similarity matrices
 
 ## Installation
 
@@ -43,81 +129,34 @@ pip install -e .
 1. Add your SQL files to the `sql_agent/data` directory
 
 2. Launch the Gradio interface:
-   ```bash
-   python sql_agent/gradio_app.py
-   ```
+```bash
+python sql_agent/gradio_app.py
+```
 
 3. Enter your natural language query and get the generated SQL
 
-## Example
+## Pipeline Flow
 
-Input:
-```
-Show me all orders from last month with total amount greater than $1000
-```
+1. **User Input Processing**
+   - Natural language query is received
+   - Query is embedded for similarity search
+   - Database metadata is loaded
 
-Output:
-```sql
--- Generated SQL based on your database schema
-SELECT 
-    o.OrderID,
-    o.OrderDate,
-    o.CustomerID,
-    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) as TotalAmount
-FROM 
-    Orders o
-    JOIN [Order Details] od ON o.OrderID = od.OrderID
-WHERE 
-    o.OrderDate >= DATEADD(month, -1, GETDATE())
-    AND o.OrderDate < GETDATE()
-GROUP BY 
-    o.OrderID,
-    o.OrderDate,
-    o.CustomerID
-HAVING 
-    SUM(od.UnitPrice * od.Quantity * (1 - od.Discount)) > 1000
-ORDER BY 
-    o.OrderDate DESC;
-```
+2. **Context Retrieval**
+   - Similar SQL examples are found using FAISS
+   - Relevant database schema is collected
+   - Examples are ranked by similarity
 
-## Architecture
+3. **Query Generation**
+   - Context is formatted into prompt
+   - LLM generates SQL query
+   - Query is validated against schema
 
-- 🔄 Three-stage processing:
-  1. Intent Analysis
-  2. Query Generation
-  3. Query Validation
-- 📚 Vector store for similar example retrieval
-- 🎯 MS SQL Server specific optimizations
-- 📊 Comprehensive metadata extraction
-- 🎨 Dual interface support:
-  - Streamlit for rich dashboard experience
-  - Gradio for simple, focused interaction
-
-## Interface Features
-
-The Gradio interface provides an intuitive way to interact with the SQL Agent:
-
-![Main Interface](media/tab1.png)
-
-### Generated SQL
-View the generated SQL query with syntax highlighting and explanations:
-![Generated SQL](media/tab2.png)
-
-### Query Analysis
-Get detailed analysis of how the query was constructed:
-![Query Analysis](media/tab3.png)
-
-### Similar Examples
-See related SQL examples from your codebase:
-![Similar Examples](media/tab4.png)
-
-Key Features:
-- 🚀 Quick query generation
-- 🎯 Simple, intuitive design
-- 📱 Mobile-friendly layout
-- 🔄 Real-time query processing
-- 📊 Usage statistics tracking
-- 🔍 Detailed query analysis
+4. **Result Presentation**
+   - Generated SQL is displayed
+   - Similar examples are shown
+   - Query analysis is provided
+   - Usage statistics are tracked
 
 ## Development
 
@@ -147,9 +186,3 @@ MIT License - see LICENSE file for details
 3. Commit your changes
 4. Push to the branch
 5. Create a Pull Request
-
-## Support
-
-- 📚 Documentation: Check the `docs/` directory
-- 🐛 Issues: Submit via GitHub Issues
-- 💬 Discussions: Use GitHub Discussions for questions
