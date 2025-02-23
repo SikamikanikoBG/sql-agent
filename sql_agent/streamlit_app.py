@@ -168,8 +168,11 @@ class SQLAgentApp:
                 if not query.strip():
                     st.warning("⚠️ Please enter a query description")
                     return
-                    
-                self.process_query(query, st.session_state.metadata)
+                
+                # Get current event loop
+                loop = asyncio.get_event_loop()
+                # Run process_query in the current event loop
+                loop.create_task(self.process_query(query, st.session_state.metadata))
             
             right.markdown("""
                 <div style='padding: 8px 0 0 20px; color: #666;'>
@@ -287,16 +290,14 @@ class SQLAgentApp:
                     st.markdown("**Generated SQL:**")
                     st.code(sql, language="sql")
             
-    def process_query(self, query: str, metadata: Dict) -> None:
+    async def process_query(self, query: str, metadata: Dict) -> None:
         try:
             with st.spinner("🤖 Generating SQL query..."):
                 # Get SQL files from the data directory
                 data_folder = "./sql_agent/data"
                 sql_files = list(Path(data_folder).glob("*.sql"))
                 
-                results, usage_stats = asyncio.run(
-                    self.agent.process_query(query, metadata)
-                )
+                results, usage_stats = await self.agent.process_query(query, metadata)
                 
             if results.error:
                 st.error(f"❌ Error: {results.error}")
