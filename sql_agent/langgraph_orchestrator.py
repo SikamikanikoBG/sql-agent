@@ -206,18 +206,6 @@ Validation Results:"""
             with st.spinner("🔍 Searching vector store..."):
                 similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
             
-            # Always show similarity search results for inspection
-            st.markdown("### 🔍 Similarity Search Results")
-            if similar_examples:
-                for score, content in similar_examples:
-                    st.markdown(f"**Score: {score:.3f}**")
-                    if isinstance(content, dict):
-                        st.markdown(f"Source: `{content.get('source', 'Unknown')}`")
-                        st.code(content.get('content', ''), language="sql")
-                    else:
-                        st.code(str(content), language="sql")
-            else:
-                st.info("No examples found in vector store")
 
             # Check if we have any relevant examples
             max_similarity = max([score for score, _ in similar_examples]) if similar_examples else 0

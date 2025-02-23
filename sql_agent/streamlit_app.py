@@ -103,14 +103,15 @@ class SQLAgentApp:
                 st.error("❌ No SQL files found")
                 return None
                 
-            with st.spinner("Loading database schema..."):
+            with st.spinner("Loading database schema and initializing vector store..."):
                 # Extract metadata
                 metadata = self.metadata_extractor.extract_metadata_from_sql_files(
                     [str(f) for f in sql_files]
                 )
-            
-                # Initialize vector store
-                self.agent.initialize_vector_store([str(f) for f in sql_files])
+                
+                # Initialize vector store if not already initialized
+                if not self.agent.vector_store:
+                    self.agent.initialize_vector_store([str(f) for f in sql_files])
                 
                 if not metadata:
                     st.warning("⚠️ No metadata extracted")
@@ -357,11 +358,6 @@ class SQLAgentApp:
         try:
             st.session_state.processing = True
             try:
-                with st.spinner("🔍 Finding similar SQL examples..."):
-                    # Get SQL files from the data directory
-                    data_folder = "./sql_agent/data"
-                    sql_files = list(Path(data_folder).glob("*.sql"))
-                
                 with st.spinner("🤖 Processing query..."):
                     logger.info("Starting query processing...")
                     results, usage_stats = self.agent.process_query(query, metadata)
