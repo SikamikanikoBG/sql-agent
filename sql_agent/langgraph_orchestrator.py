@@ -232,8 +232,8 @@ Validation Results:"""
             
             # Parse intent
             with st.spinner("🎯 Analyzing query intent..."):
-                formatted_metadata = self._format_metadata(metadata)
                 formatted_examples = self._format_examples(similar_examples)
+                context = formatted_examples if similar_examples else self._format_metadata(metadata)
                 
                 logger.info(f"Using {len(similar_examples)} similar examples in prompt")
                 for i, (score, example) in enumerate(similar_examples):
@@ -244,8 +244,8 @@ Validation Results:"""
             try:
                 intent_result = self.intent_chain.invoke({
                     "query": query,
-                    "metadata": formatted_metadata,
-                    "similar_examples": formatted_examples if similar_examples else "No relevant examples found."
+                    "metadata": "",  # Empty metadata when we have examples
+                    "similar_examples": context
                 })
                 logger.info("Intent parsing completed")
                 self._update_usage_stats(intent_result)
@@ -259,8 +259,8 @@ Validation Results:"""
             try:
                 query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
-                    "metadata": formatted_metadata,
-                    "similar_examples": formatted_examples if similar_examples else "No relevant examples found."
+                    "metadata": "",  # Empty metadata when we have examples
+                    "similar_examples": context
                 })
                 logger.info("Query generation completed")
                 self._update_usage_stats(query_result)
@@ -272,9 +272,14 @@ Validation Results:"""
             with st.spinner("✅ Validating generated query..."):
                 logger.info("Starting query validation...")
             try:
+                # For validation, we need minimal schema info
+                minimal_metadata = {
+                    k: v for k, v in metadata.items() 
+                    if k in ['tables', 'views', 'columns', 'relationships']
+                }
                 validation_result = self.validation_chain.invoke({
                     "query": query_result.content,
-                    "metadata": formatted_metadata
+                    "metadata": self._format_metadata(minimal_metadata)
                 })
                 logger.info("Query validation completed")
                 self._update_usage_stats(validation_result)
