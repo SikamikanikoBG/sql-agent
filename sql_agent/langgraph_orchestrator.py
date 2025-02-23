@@ -42,8 +42,8 @@ class SQLAgentOrchestrator:
         self,
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
-        similarity_threshold: float = 0.65,  # Higher threshold for more reliable matches
-        max_examples: int = 3  # Fewer but more relevant examples
+        similarity_threshold: float = 0.3,  # Lower threshold to get more matches
+        max_examples: int = 10  # Increase number of examples
     ):
         """Initialize the SQL Agent Orchestrator.
         
@@ -221,7 +221,7 @@ Validation Results:"""
 
             # Check if we have any relevant examples
             max_similarity = max([score for score, _ in similar_examples]) if similar_examples else 0
-            if max_similarity < self.similarity_threshold:
+            if not similar_examples or (max_similarity < self.similarity_threshold and len(similar_examples) < 3):
                 return QueryResult(
                     generated_query="",
                     agent_interactions={},
@@ -410,8 +410,8 @@ Validation Results:"""
             similar_examples = []
             for similarity, doc in normalized_results:
                 logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
-                # Always include top examples even if below threshold
-                if len(similar_examples) < 2 or similarity >= self.similarity_threshold:
+                # Include more examples that meet minimum threshold
+                if similarity >= 0.1:  # Very low minimum threshold to get more results
                     try:
                         example = {
                             'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
