@@ -16,7 +16,7 @@ An AI-powered SQL query generation and analysis tool that helps you write MS SQL
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/arsensokolov/sql-agent.git
+git clone https://github.com/SikamikanikoBG/sql-agent.git
 cd sql-agent
 ```
 
