@@ -340,14 +340,30 @@ Validation Results:"""
         if not self.vector_store:
             return [], [], []
             
-        results = self.vector_store.similarity_search_with_score(
-            query,
-            k=self.max_examples
-        )
-        
-        # Get embeddings
-        query_vector = self.embeddings.embed_query(query)
-        metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
+        try:
+            results = self.vector_store.similarity_search_with_score(
+                query,
+                k=self.max_examples
+            )
+            logger.info(f"Found {len(results)} similar examples")
+            
+            # Log the actual results for debugging
+            for doc, score in results:
+                logger.info(f"Similarity score: {score}")
+                logger.info(f"Content: {doc.page_content[:100]}...")  # First 100 chars
+                logger.info(f"Metadata: {doc.metadata}")
+                
+            # Convert scores to cosine similarity (0-1 range)
+            max_score = max(score for _, score in results) if results else 1
+            normalized_results = [(1 - (score/max_score), doc) for doc, score in results]
+            
+            logger.info("Normalized similarity scores:")
+            for score, doc in normalized_results:
+                logger.info(f"Normalized score: {score}")
+            
+            # Get embeddings
+            query_vector = self.embeddings.embed_query(query)
+            metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
         
         similar_examples = []
         for score, doc in normalized_results:
