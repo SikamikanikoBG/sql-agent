@@ -225,23 +225,25 @@ class MetadataExtractor:
             for statement in statements:
                 if 'CREATE PROCEDURE' in statement.upper():
                     match = self.patterns['procedure'].search(statement + ';')
-                    if not match:
-                        continue
-                    name, params, body = match.groups()
-                    clean_name = name.strip('[] \n\t')
-                    logger.info(f"Processing procedure: {clean_name}")
-                parameters = self._parse_procedure_parameters(params)
-                description = self._extract_procedure_description(body)
-                
-                sql_object = SQLObject(
-                    type="procedure",
-                    name=name.strip(),
-                    definition=body.strip(),
-                    source_file=file_path,
-                    parameters=parameters,
-                    description=description
-                )
-                file_metadata["objects"].append(vars(sql_object))
+                    if match:
+                        name, params, body = match.groups()
+                        clean_name = name.strip('[] \n\t')
+                        logger.info(f"Processing procedure: {clean_name}")
+                        
+                        # Initialize params to empty string if None
+                        params = params if params else ""
+                        parameters = self._parse_procedure_parameters(params)
+                        description = self._extract_procedure_description(body)
+                        
+                        sql_object = SQLObject(
+                            type="procedure",
+                            name=clean_name,
+                            definition=body.strip() if body else "",
+                            source_file=file_path,
+                            parameters=parameters,
+                            description=description
+                        )
+                        file_metadata["objects"].append(vars(sql_object))
         
         return file_metadata
 
