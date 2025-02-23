@@ -357,13 +357,15 @@ class SQLAgentApp:
         try:
             st.session_state.processing = True
             try:
-                # Get SQL files from the data directory
-                data_folder = "./sql_agent/data"
-                sql_files = list(Path(data_folder).glob("*.sql"))
+                with st.spinner("🔍 Finding similar SQL examples..."):
+                    # Get SQL files from the data directory
+                    data_folder = "./sql_agent/data"
+                    sql_files = list(Path(data_folder).glob("*.sql"))
                 
-                logger.info("Starting query processing...")
-                results, usage_stats = self.agent.process_query(query, metadata)
-                logger.info("Query processing completed")
+                with st.spinner("🤖 Processing query..."):
+                    logger.info("Starting query processing...")
+                    results, usage_stats = self.agent.process_query(query, metadata)
+                    logger.info("Query processing completed")
                 
                 if not results:
                     st.error("No results returned from query processing")

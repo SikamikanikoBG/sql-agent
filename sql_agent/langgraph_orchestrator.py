@@ -2,6 +2,7 @@ import re
 from typing import List, Dict, Any, Tuple, Optional
 import logging
 from dataclasses import dataclass
+import streamlit as st
 from pathlib import Path
 import json
 
@@ -209,10 +210,12 @@ Validation Results:"""
                 self.initialize_vector_store(sql_files)
             
             # Find similar examples and get vectors
-            similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
+            with st.spinner("🔍 Searching vector store..."):
+                similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
             
             # Format similar examples for display
-            formatted_examples = []
+            with st.spinner("📝 Formatting examples..."):
+                formatted_examples = []
             for score, content in similar_examples:
                 if isinstance(content, dict):
                     formatted_examples.append({
@@ -228,10 +231,11 @@ Validation Results:"""
                     })
             
             # Parse intent
-            formatted_metadata = self._format_metadata(metadata)
-            formatted_examples = self._format_examples(similar_examples)
-            
-            logger.info("Starting intent parsing...")
+            with st.spinner("🎯 Analyzing query intent..."):
+                formatted_metadata = self._format_metadata(metadata)
+                formatted_examples = self._format_examples(similar_examples)
+                
+                logger.info("Starting intent parsing...")
             try:
                 intent_result = self.intent_chain.invoke({
                     "query": query,
@@ -245,7 +249,8 @@ Validation Results:"""
                 raise
             
             # Generate query
-            logger.info("Starting query generation...")
+            with st.spinner("✍️ Generating SQL query..."):
+                logger.info("Starting query generation...")
             try:
                 query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
@@ -259,7 +264,8 @@ Validation Results:"""
                 raise
             
             # Validate generated query
-            logger.info("Starting query validation...")
+            with st.spinner("✅ Validating generated query..."):
+                logger.info("Starting query validation...")
             try:
                 validation_result = self.validation_chain.invoke({
                     "query": query_result.content,
