@@ -1,0 +1,978 @@
+
+FILE: R:\Projects\sql_agent\.llmclignore
+================================================================================
+sql_agent\data
+__pycache__
+.*
+
+
+FILE: R:\Projects\sql_agent\requirements.txt
+================================================================================
+# Core dependencies
+langgraph>=0.0.1
+langchain>=0.1.0
+openai>=1.0.0
+
+# Web interface
+streamlit>=1.29.0
+click>=8.0.0
+
+# Data processing
+typing-extensions>=4.0.0
+
+# Development
+python-dotenv>=1.0.0
+
+
+
+FILE: R:\Projects\sql_agent\setup.py
+================================================================================
+from setuptools import setup, find_packages
+
+setup(
+    name="sql_agent",
+    version="0.1.0",
+    packages=find_packages(),
+    install_requires=[
+        "streamlit",
+        "openai",
+        "langgraph",
+        "pyodbc",
+        "langchain",
+        "langchain-community"
+    ]
+)
+
+
+
+FILE: R:\Projects\sql_agent\.codelens\analysis.txt
+================================================================================
+CODEBASE SUMMARY:
+This project contains 11 files:
+File types: 
+Total lines of code: 928
+Average file size: 84.4 lines
+Overall complexity: 173
+
+KEY INSIGHTS:
+- Project contains 11 analyzable files
+- Found 2 complex functions that might need attention
+
+CODE METRICS:
+Functions: 13 (11 documented, 2 complex)
+Classes: 2 (1 documented)
+Documentation coverage: 0.0%
+Total imports: 35 (18 unique)
+
+PROJECT STRUCTURE AND CODE INSIGHTS:
+
+================================================================================
+R:/Projects/sql_agent/ (15 lines)
+================================================================================
+  setup.py
+    Lines: 15
+    Complexity: 0
+
+    IMPORTS:
+      from setuptools import find_packages
+      from setuptools import setup
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/ (398 lines)
+================================================================================
+  extract_metadata_from_sql_files.py
+    Lines: 57
+    Complexity: 12
+
+CLASSES:
+  SQLAgentOrchestrator:
+    Line: 4
+    Instance methods: extract_metadata, extract_metadata_from_sql_files
+
+FUNCTIONS:
+  extract_metadata:
+    Line: 5
+    Args: sql_content: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL content including tables
+    Complexity: 3
+  extract_metadata_from_sql_files:
+    Line: 20
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files
+    Complexity: 3
+
+    IMPORTS:
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      import re
+
+  metadata_extractor.py
+    Lines: 86
+    Complexity: 6
+
+FUNCTIONS:
+  extract_metadata_from_sql_files:
+    Line: 4
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files including tables.
+    Complexity: 6
+
+    IMPORTS:
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      import re
+
+  streamlit_app.py
+    Lines: 185
+    Complexity: 30
+
+FUNCTIONS:
+  main:
+    Line: 10
+    Complexity: 30
+
+    IMPORTS:
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from typing import Dict
+      from typing import List
+      import openai
+      import os
+      import re
+      import streamlit
+      import tempfile
+
+  visualization.py
+    Lines: 70
+    Complexity: 18
+
+CLASSES:
+  SimilaritySearchResultPlot:
+    Line: 4
+    Doc: Helper class for visualizing similarity search results
+    Instance methods: __init__, _calculate_cosine_similarity, create_visualization
+
+FUNCTIONS:
+  __init__:
+    Line: 7
+    Args: query_vector: List[float], metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Complexity: 2
+  _calculate_cosine_similarity:
+    Line: 19
+    Args: a: List[float], b: List[float]
+    Returns: float
+    Doc: Calculate cosine similarity between two vectors.
+    Complexity: 2
+  create_visualization:
+    Line: 30
+    Returns: go.Figure
+    Doc: Create a visualization of similarity scores
+    Complexity: 3
+  cosine_similarity_matrix:
+    Line: 52
+    Args: metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Returns: dict
+    Doc: Calculate and visualize cosine similarity matrix
+    Complexity: 4
+
+    IMPORTS:
+      from plotly.subplots import make_subplots
+      import plotly.graph_objects
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/data/ (392 lines)
+================================================================================
+  q1.sql
+    Lines: 34
+    Complexity: 0
+
+    DEPENDENCIES:
+      employees
+      large
+      projects
+      sales
+
+  transactions.sql
+    Lines: 358
+    Complexity: 98
+
+    DEPENDENCIES:
+      customers
+      error_logs
+      inventory_logs
+      json_to_recordset
+      notifications
+      order_items
+      orders
+      payment
+      payments
+      product
+      products
+      transaction_logs
+      v_customer_tier
+      v_order_id
+      v_price
+
+    COMMENTS:
+      Line 29: Start transaction
+      Line 32: Generate transaction ID
+      Line 35: Log transaction start
+      Line 50: Validate customer exists
+      Line 56: Get customer tier for discount calculation
+      Line 61: Set discount rate based on customer tier
+      Line 70: Create new order
+      Line 87: Process each order item
+      Line 93: Validate product exists and get price
+      Line 103: Check if enough stock is available
+      Line 109: Add order item
+      Line 124: Update product stock
+      Line 130: Add to order total
+      Line 133: Log inventory change
+      Line 153: Calculate shipping cost based on total amount
+      Line 159: Free shipping for orders over $100
+      Line 162: Calculate tax (assume 7% tax rate)
+      Line 166: Apply discount
+      Line 169: Calculate final amount
+      Line 172: Update order with final amounts
+      Line 183: Process payment
+      Line 185: Simulate payment processing
+      Line 202: Simulate payment gateway call
+      Line 203: In real implementation, you would call a payment gateway API here
+      Line 204: 95% success rate for demonstration
+      Line 211: Update payment status
+      Line 219: Log payment failure
+      Line 236: Update order status
+      Line 245: Rollback transaction
+      Line 250: Update order status to CONFIRMED if everything succeeded
+      Line 256: Log transaction completion
+      Line 273: Send notification (simulated here)
+      Line 290: Set output parameters
+      Line 294: Commit transaction
+      Line 299: Log error
+      Line 316: Update order status if order was created
+      Line 324: Set output parameters
+      Line 328: Rollback transaction
+      Line 333: Example call:
+      Line 334: DO $$
+DECLARE
+    v_order_id INT;
+    v_status VARCHAR(50);
+    v_message VARCHAR(500);
+    v_items JSON := '[
+        {"product_id": 101, "quantity": 2},
+        {"product_id": 203, "quantity": 1}
+    ]';
+BEGIN
+    CALL process_order(
+        1001,                 -- customer_id
+        CURRENT_DATE,         -- order_date
+        v_items,              -- items JSON
+        'CREDIT_CARD',        -- payment_method
+        v_order_id,           -- OUT parameter
+        v_status,             -- OUT parameter
+        v_message             -- OUT parameter
+    );
+    
+    RAISE NOTICE 'Status: %, Message: %, Order ID: %', v_status, v_message, v_order_id;
+END;
+$$;
+      Line 346: customer_id
+      Line 347: order_date
+      Line 348: items JSON
+      Line 349: payment_method
+      Line 350: OUT parameter
+      Line 351: OUT parameter
+      Line 352: OUT parameter
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/utils/ (68 lines)
+================================================================================
+  regex_search.py
+    Lines: 68
+    Complexity: 5
+
+FUNCTIONS:
+  search_sql_content:
+    Line: 4
+    Args: content: str
+    Returns: Dict[Tuple[str, List[str]]]
+    Doc: Search SQL content using regex patterns for various database objects.
+    Complexity: 5
+
+    IMPORTS:
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      import re
+
+
+================================================================================
+R:/Projects/sql_agent/tests/ (55 lines)
+================================================================================
+  conftest.py
+    Lines: 23
+    Complexity: 2
+
+FUNCTIONS:
+  mock_db_connection:
+    Line: 10
+    Doc: Create mock database connection for testing
+    Decorators: pytest.fixture
+    Complexity: 1
+  in_memory_db:
+    Line: 18
+    Doc: Create in-memory SQLite database for testing
+    Decorators: pytest.fixture
+    Complexity: 1
+
+    IMPORTS:
+      from unittest.mock import Mock
+      import logging
+      import pytest
+      import sqlite3
+
+  test_sql_agent.py
+    Lines: 32
+    Complexity: 2
+
+FUNCTIONS:
+  test_metadata_extraction:
+    Line: 5
+    Args: mock_db_connection
+    Doc: Test metadata extraction from SQL files
+    Complexity: 1
+  test_query_generation:
+    Line: 29
+    Doc: Test query generation using regex search
+    Complexity: 1
+
+    IMPORTS:
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from unittest.mock import Mock
+      import pytest
+      import re
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\extract_metadata_from_sql_files.py
+================================================================================
+import re
+from typing import List, Dict, Any
+
+class SQLAgentOrchestrator:
+    def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
+        """Extract metadata from SQL content including tables"""
+        
+        try:
+            match = re.search(r'CREATE TABLE (.*)', sql_content)
+            while match:
+                yield match.group(1)
+                match = re.search(r'CREATE TABLE (.*)', sql_content, startposition=len(match.laststring))
+            
+            return []
+        
+        except Exception as e:
+            print(f"Error extracting tables: {str(e)}")
+            return []
+
+    def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
+        """Extract metadata from SQL files"""
+        
+        if not files:
+            return {
+                "tables": [],
+                "views": [],
+                "procedures": [],
+                "columns": {},
+                "schemas": {},
+                "view_definitions": {},
+                "relational_data": {},
+                "indexed_tables": {}
+            }
+        
+        # Process each file
+        metadata = []
+        relationships = {}
+        
+        for file_path in files:
+            with open(file_path, 'r') as f:
+                sql_content = f.read()
+                
+                tables = self.extract_metadata(sql_content)
+                
+                # Store extracted metadata
+                metadata.extend(tables)
+                
+        return {
+            "tables": list(set(metadata)),
+            "views": [],
+            "procedures": [],
+            "columns": {},
+            "schemas": {},
+            "view_definitions": {},
+            "relational_data": {},
+            "indexed_tables": {}
+        }
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\langgraph_orchestrator.py
+================================================================================
+import re
+from typing import List, Dict, Any
+
+class SQLAgentOrchestrator:
+    def __init__(self):
+        self.metadata = None
+    
+    def _create_workflow(self) -> StateGraph:
+        """Create the Langgraph workflow for SQL query generation."""
+        # Define the schema for our state
+        class AgentState(TypedDict):
+            user_input: str
+            metadata: Dict
+            parsed_intent: Annotated[str, "The parsed user intent"]
+            relevant_content: Annotated[List[Dict], "Relevant SQL content from vector search"]
+            generated_query: Annotated[str, "The generated SQL query"]
+            is_valid: Annotated[bool, "Whether the query is valid"]
+    
+    def process_query(self, user_input: str, metadata: Dict) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Process a user's natural language query and generate an SQL query."""
+        # Placeholder for actual processing logic
+        return {
+            "agent_interactions": {},
+            "similarity_search": [],
+            "generated_query": "SELECT * FROM users WHERE id = 1",
+            "usage_stats": {
+                "tokens": {"prompt": 0, "completion": 0},
+                "cost": 0.0
+            }
+        }
+
+    def extract_metadata(self, sql_content: str) -> List[str]:
+        """Extract metadata from SQL content including tables"""
+        
+        try:
+            match = re.search(r'CREATE TABLE (.*)', sql_content)
+            while match:
+                yield match.group(1)
+                match = re.search(r'CREATE TABLE (.*)', sql_content, startposition=len(match.laststart))
+            
+            return []
+        
+    def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
+        """Extract metadata from a list of SQL files."""
+        if not self.metadata:
+            self.metadata = {}
+            for file in files:
+                with open(file, 'r') as f:
+                    sql_content = f.read()
+                    tables = list(self.extract_metadata(sql_content))
+                    if tables:
+                        self.metadata[file] = {"tables": tables}
+        return self.metadata
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\metadata_extractor.py
+================================================================================
+import re
+from typing import List, Dict, Any
+
+def extract_metadata_from_sql_files(files: List[str]) -> Dict[str, Any]:
+    """Extract metadata from SQL files including tables."""
+    if not files:
+        return {
+            "tables": [],
+            "views": [],
+            "procedures": [],
+            "schemas": {},
+            "view_definitions": {},
+            "procedure_info": {},
+            "relationships": [],
+            "raw": [],
+            "error": "No SQL files provided"
+        }
+
+    metadata = []
+    relationships = []
+    
+    for file in files:
+        with open(file, 'r') as f:
+            sql_content = f.read()
+            
+            # Extract tables using regex
+            tables = re.findall(r'CREATE TABLE (\w+)', sql_content)
+            for table in tables:
+                metadata.append({
+                    'type': 'table',
+                    'name': table,
+                    'schema': [],
+                    'source_file': file
+                })
+                relationships.extend([
+                    {
+                        'from_table': table,
+                        'from_column': None,
+                        'to_table': None,
+                        'to_column': None
+                    }
+                ])
+            
+            # Extract views using regex
+            views = re.findall(r'CREATE VIEW (\w+) AS', sql_content)
+            for view in views:
+                metadata.append({
+                    'type': 'view',
+                    'name': view,
+                    'definition': '',
+                    'source_file': file
+                })
+            
+            # Extract procedures using regex
+            procedures = re.findall(r'CREATE PROCEDURE (\w+)', sql_content)
+            for proc in procedures:
+                metadata.append({
+                    'type': 'procedure',
+                    'name': proc,
+                    'parameters': [],
+                    'body': '',
+                    'source_file': file,
+                    'description': ''
+                })
+    
+    # Organize metadata into a more structured format
+    return {
+        "tables": [item["name"] for item in metadata if item["type"] == "table"],
+        "views": [item["name"] for item in metadata if item["type"] == "view"],
+        "procedures": [item["name"] for item in metadata if item["type"] == "procedure"],
+        "schemas": {
+            item["name"]: [] for item in metadata if item["type"] == "table"
+        },
+        "view_definitions": {
+            item["name"]: '' for item in metadata if item["type"] == "view"
+        },
+        "procedure_info": {
+            item["name"]: {
+                "parameters": [],
+                "description": '',
+                "body": ''
+            } for item in metadata if item["type"] == "procedure"
+        },
+        "relationships": relationships,
+        "raw": metadata
+    }
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\streamlit_app.py
+================================================================================
+import streamlit as st
+import os
+import tempfile
+from typing import Dict, List
+import re
+import openai  # Import the openai module
+
+from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+
+def main():
+    st.title("SQL Agent - Query Generation and Execution")
+    st.write("Enter your SQL-related prompt below to generate queries and analyze data.")
+
+    st.sidebar.markdown("### Configuration")
+    
+    # Get OpenAI API key
+    api_key = st.sidebar.text_input(
+        "OpenAI API Key",
+        value=os.getenv('OPENAI_API_KEY', ''),
+        type="password"
+    )
+
+    # Check OpenAI API connectivity
+    if api_key:
+        try:
+            openai.api_key = api_key
+            models = openai.models.list()
+            st.sidebar.success("✅ OpenAI API connection successful")
+            available_models = [model.id for model in models if "gpt" in model.id.lower()]
+            st.sidebar.info(f"Available GPT models: {', '.join(available_models)}")
+        except Exception as e:
+            st.sidebar.error(f"❌ OpenAI API Error: {str(e)}")
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Operation Mode")
+    
+    if not api_key:
+        st.warning("Please enter your OpenAI API key in the sidebar.")
+        return
+
+    # Initialize agent
+    agent = SQLAgentOrchestrator()
+
+    # Fixed data folder path
+    data_folder = "./sql_agent/data"
+
+    # Scan data folder and show stats in sidebar
+    if os.path.exists(data_folder) and os.path.isdir(data_folder):
+        sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                    if f.endswith('.sql')]
+        
+        st.sidebar.markdown("### Data Files Status")
+        if sql_files:
+            try:
+                metadata = extract_metadata_from_sql_files(sql_files)
+                if not metadata:
+                    st.sidebar.warning("⚠️ No metadata extracted from SQL files")
+                    return
+                st.sidebar.success(f"📁 Found {len(sql_files)} SQL files in knowledge base")
+                
+                st.sidebar.markdown("### Knowledge Base Stats")
+                st.sidebar.text(f"📊 Tables: {len(metadata.get('tables', []))}")
+                st.sidebar.text(f"📊 Views: {len(metadata.get('views', []))}")
+                st.sidebar.text(f"📊 Procedures: {len(metadata.get('procedures', []))}")
+                if 'procedure_info' in metadata:
+                    st.sidebar.text(f"📊 Detailed Procedures: {len(metadata['procedure_info'])}")
+            except Exception as e:
+                st.sidebar.error(f"Error extracting metadata: {str(e)}")
+                return
+            
+        else:
+            st.sidebar.error("No SQL files found in knowledge base")
+            st.error("No SQL files found in the knowledge base")
+            return
+    else:
+        st.sidebar.error("Knowledge base folder not found")
+        st.error("Knowledge base folder not found")
+        return
+
+    # Query input section
+    user_query = st.text_area(
+        "Enter your natural language query:",
+        height=100
+    )
+
+    if st.button("Generate Query"):
+            if not user_query.strip():
+                st.warning("Please enter a valid query or prompt.")
+                return
+
+            try:
+                # Use the already extracted metadata
+                sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
+                           if f.endswith('.sql')]
+                metadata = extract_metadata_from_sql_files(sql_files)
+
+                # Initialize agent steps display
+                st.markdown("### 🤖 SQL Agent Workflow")
+                steps = {
+                    "parse_intent": "1️⃣ Parse User Intent",
+                    "find_relevant_content": "2️⃣ Find Relevant Content",
+                    "generate_query": "3️⃣ Generate SQL Query",
+                    "validate_query": "4️⃣ Validate Query"
+                }
+                
+                # Process query and show each step
+                result, usage_stats = agent.process_query(user_query, metadata)
+                
+                # Display each agent's interaction
+                for step_name, step_data in result["agent_interactions"].items():
+                    with st.expander(f"🤖 {steps[step_name]}", expanded=True):
+                        st.markdown("**System Prompt:**")
+                        st.code(step_data["system_prompt"])
+                        st.markdown("**User Prompt:**")
+                        st.code(step_data["user_prompt"])
+                        st.markdown("**Result:**")
+                        st.code(step_data["result"])
+                
+                # Display final results
+                if result.get("similarity_search"):
+                    with st.expander("📊 Similarity Search Results"):
+                        st.markdown("### Top Matching Chunks:")
+                        for idx, (score, chunk) in enumerate(result["similarity_search"], 1):
+                            st.markdown(f"**Match {idx}** (Score: {score:.3f})")
+                            st.code(chunk, language="sql")
+                
+                # Display final query with formatting
+                st.markdown("### 📝 Final Generated Query")
+                if result["generated_query"].startswith('ERROR:'):
+                    error_msg = result["generated_query"].split('\n')
+                    st.error(error_msg[0])
+                    if metadata:
+                        with st.expander("Available Database Objects"):
+                            if metadata.get('tables'):
+                                st.markdown("**Tables:**")
+                                for table in metadata['tables']:
+                                    st.markdown(f"- `{table}`")
+                            if metadata.get('views'):
+                                st.markdown("**Views:**")
+                                for view in metadata['views']:
+                                    st.markdown(f"- `{view}`")
+                            if metadata.get('procedures'):
+                                st.markdown("**Procedures:**")
+                                for proc in metadata['procedures']:
+                                    st.markdown(f"- `{proc}`")
+                else:
+                    st.code(result["generated_query"], language="sql")
+                
+                # Show usage statistics
+                with st.expander("📊 Usage Statistics"):
+                    tokens = usage_stats["tokens"]
+                    st.info(
+                        f"Tokens: {tokens['prompt']:,} sent, {tokens['completion']:,} received\n\n"
+                        f"Cost: ${usage_stats['cost']:.2f} for this query"
+                    )
+
+                # Display error details if any
+                if result.get("available_objects"):
+                    with st.expander("Show available database objects"):
+                        st.text(result["available_objects"])
+
+                # Display relevant files content
+                if result.get("relevant_files"):
+                    st.markdown("### 📑 File Contents")
+                    relevant_files_content = []
+                    for file_path in result["relevant_files"]:
+                        try:
+                            with open(file_path, 'r') as f:
+                                relevant_files_content.append((os.path.basename(file_path), f.read()))
+                        except Exception as e:
+                            relevant_files_content.append((os.path.basename(file_path), f"Error reading file: {str(e)}"))
+                            
+                    for filename, content in relevant_files_content:
+                        with st.expander(f"📄 {filename}"):
+                            if content.startswith("Error"):
+                                st.error(content)
+                            else:
+                                st.code(content, language="sql")
+
+            except Exception as e:
+                st.error(f"Error processing query: {str(e)}")
+                st.exception(e)  # Show detailed error for debugging
+
+if __name__ == "__main__":
+    main()
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\visualization.py
+================================================================================
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+class SimilaritySearchResultPlot:
+    """Helper class for visualizing similarity search results"""
+    
+    def __init__(self, query_vector: List[float], metadata_vectors: List[List[float]], 
+                 similarity_threshold: float = 0.7):
+        self.query_vector = query_vector
+        self.similarities = []
+        self.metadata_vectors = metadata_vectors
+        self.similarity_threshold = similarity_threshold
+        
+        # Calculate similarities between query vector and each metadata vector
+        for vec in metadata_vectors:
+            sim = self._calculate_cosine_similarity(query_vector, vec)
+            self.similarities.append(sim)
+            
+    def _calculate_cosine_similarity(self, a: List[float], b: List[float]) -> float:
+        """Calculate cosine similarity between two vectors."""
+        dot_product = sum(a[i] * b[i] for i in range(len(a)))
+        norm_a = math.sqrt(sum(num ** 2 for num in a))
+        norm_b = math.sqrt(sum(num ** 2 for num in b))
+        
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+            
+        return dot_product / (norm_a * norm_b)
+    
+    def create_visualization(self) -> go.Figure:
+        """Create a visualization of similarity scores"""
+        fig = make_subplots(rows=1, cols=2, subplot_titles=["Query Embedding", "Metadata Vectors"])
+
+        # Plot query embedding
+        fig.add_trace(go.Scatter(x=[0], y=self.query_vector, name="Query Vector"), row=1, col=1)
+        
+        # Plot metadata vectors
+        for i, vec in enumerate(self.metadata_vectors):
+            x = [i+1] * len(vec)
+            y = vec
+            fig.add_trace(go.Scatter(x=x, y=y, name=f"Metadata {i+1}"), row=1, col=2)
+
+        # Add cosine similarity labels
+        for i, sim in enumerate(self.similarities):
+            x_coord = i + 2
+            y_coord = max(self.query_vector) * 0.9
+            
+            fig.add_annotation(x=x_coord, y=y_coord, text=f"Similarity: {sim:.4f}", showarrow=False)
+
+        return fig
+        
+def cosine_similarity_matrix(metadata_vectors: List[List[float]], 
+                           similarity_threshold: float = 0.7) -> dict:
+    """Calculate and visualize cosine similarity matrix"""
+    similarities = []
+    
+    for i in range(len(metadata_vectors)):
+        vec_i = metadata_vectors[i]
+        sims = {}
+        for j in range(i+1, len(metadata_vectors)):
+            vec_j = metadata_vectors[j]
+            sim = _calculate_cosine_similarity(vec_i, vec_j)
+            sims[j] = sim
+            
+            if sim >= similarity_threshold:
+                sims[j] = {'similarity': sim, 'highlight': True}
+        
+        similarities.append(sims)
+    
+    return similarities
+
+
+
+FILE: R:\Projects\sql_agent\sql_agent\utils\regex_search.py
+================================================================================
+import re
+from typing import Dict, List, Optional
+
+def search_sql_content(content: str) -> Dict[str, List[str]]:
+    """Search SQL content using regex patterns for various database objects.
+    
+    Args:
+        content: The SQL query or schema definition to analyze
+        
+    Returns:
+        Dictionary with found objects by type
+    """
+    # Common pattern components
+    identifier_pattern = r'\b(?:[A-Za-z_]\w*)+\b'  # Matches valid SQL identifiers
+    
+    # Tables
+    table_create_pattern = re.compile(r'\bCREATE\s+TABLE\b', re.IGNORECASE)
+    tables = re.findall(identifier_pattern, content[table_create_pattern.search(content):])
+    
+    # Views
+    view_create_pattern = re.compile(r'\bCREATE\s+VIEW\b', re.IGNORECASE)
+    views = re.findall(identifier_pattern, content[view_create_pattern.search(content):])
+    
+    # Procedures
+    proc_create_pattern = re.compile(r'\bCREATE\s+PROCEDURE\b', re.IGNORECASE)
+    procedures = re.findall(identifier_pattern, content[proc_create_pattern.search(content):])
+    
+    # Columns
+    column_patterns = [
+        r'\bALTER\s+TABLE\b',  # Existing columns through ALTER TABLE
+        r'\bCREATE\s+INDEX\b'   # Indexed columns
+    ]
+    columns = []
+    for pattern in column_patterns:
+        idx = content.find(pattern)
+        if idx != -1:
+            cols = re.findall(identifier_pattern, content[idx:])
+            columns.extend(cols)
+    
+    # Primary Keys
+    pk_pattern = r'\bPRIMARY\s+KEY\b'
+    pks = re.findall(identifier_pattern, content[pk_pattern.search(content):])
+    
+    # Foreign Keys
+    fk_pattern = r'\bFOREIGN\s+KEY\b'
+    fks = re.findall(identifier_pattern, content[fk_pattern.search(content):])
+    
+    # Indexes
+    index_patterns = [
+        r'\bCREATE\s+INDEX\b',
+        r'\bUNIQUE\s+CONSTRAINT\b'  # Unique indexes through constraints
+    ]
+    indexes = []
+    for pattern in index_patterns:
+        idx = content.find(pattern)
+        if idx != -1:
+            index_cols = re.findall(identifier_pattern, content[idx:])
+            indexes.extend(index_cols)
+    
+    return {
+        'tables': list(set(tables)),
+        'views': list(set(views)),
+        'procedures': list(set(procedures)),
+        'columns': list(set(columns)),
+        'primary_keys': list(set(pks)),
+        'foreign_keys': list(set(fks)),
+        'indexes': list(set(indexes))
+    }
+
+
+
+FILE: R:\Projects\sql_agent\tests\conftest.py
+================================================================================
+import pytest
+import sqlite3
+import logging
+from unittest.mock import Mock
+
+logging.basicConfig(level=logging.INFO,
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+@pytest.fixture
+def mock_db_connection():
+    """Create mock database connection for testing"""
+    conn = Mock()
+    cur = Mock()
+    conn.cursor.return_value = cur
+    return conn, cur
+
+@pytest.fixture
+def in_memory_db():
+    """Create in-memory SQLite database for testing"""
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+    yield conn, cur
+    conn.close()
+
+
+
+FILE: R:\Projects\sql_agent\tests\test_sql_agent.py
+================================================================================
+import pytest
+from unittest.mock import Mock
+from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator  # Import necessary module
+
+def test_metadata_extraction(mock_db_connection):
+    """Test metadata extraction from SQL files"""
+    
+    conn, cur = mock_db_connection
+    
+    # Mock SQL file content
+    sql_content = """
+    CREATE TABLE sales (
+        id INTEGER PRIMARY KEY,
+        date DATE,
+        amount DECIMAL(10,2)
+    );
+    """
+    
+    # Import necessary modules
+    import re
+    from typing import List, Dict, Any
+    
+    # Extract tables using regex search
+    agent = SQLAgentOrchestrator()
+    extracted_tables = agent.extract_metadata(sql_content)
+    
+    assert len(extracted_tables) == 1
+    
+def test_query_generation():
+    """Test query generation using regex search"""
+    
+    assert True  # Implement later with regex-based query generation
+

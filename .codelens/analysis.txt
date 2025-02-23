@@ -1,0 +1,314 @@
+CODEBASE SUMMARY:
+This project contains 11 files:
+File types: 
+Total lines of code: 928
+Average file size: 84.4 lines
+Overall complexity: 173
+
+KEY INSIGHTS:
+- Project contains 11 analyzable files
+- Found 2 complex functions that might need attention
+
+CODE METRICS:
+Functions: 13 (11 documented, 2 complex)
+Classes: 2 (1 documented)
+Documentation coverage: 0.0%
+Total imports: 35 (18 unique)
+
+PROJECT STRUCTURE AND CODE INSIGHTS:
+
+================================================================================
+R:/Projects/sql_agent/ (15 lines)
+================================================================================
+  setup.py
+    Lines: 15
+    Complexity: 0
+
+    IMPORTS:
+      from setuptools import find_packages
+      from setuptools import setup
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/ (398 lines)
+================================================================================
+  extract_metadata_from_sql_files.py
+    Lines: 57
+    Complexity: 12
+
+CLASSES:
+  SQLAgentOrchestrator:
+    Line: 4
+    Instance methods: extract_metadata, extract_metadata_from_sql_files
+
+FUNCTIONS:
+  extract_metadata:
+    Line: 5
+    Args: sql_content: str
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL content including tables
+    Complexity: 3
+  extract_metadata_from_sql_files:
+    Line: 20
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files
+    Complexity: 3
+
+    IMPORTS:
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      import re
+
+  metadata_extractor.py
+    Lines: 86
+    Complexity: 6
+
+FUNCTIONS:
+  extract_metadata_from_sql_files:
+    Line: 4
+    Args: files: List[str]
+    Returns: Dict[Tuple[str, Any]]
+    Doc: Extract metadata from SQL files including tables.
+    Complexity: 6
+
+    IMPORTS:
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      import re
+
+  streamlit_app.py
+    Lines: 185
+    Complexity: 30
+
+FUNCTIONS:
+  main:
+    Line: 10
+    Complexity: 30
+
+    IMPORTS:
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from typing import Dict
+      from typing import List
+      import openai
+      import os
+      import re
+      import streamlit
+      import tempfile
+
+  visualization.py
+    Lines: 70
+    Complexity: 18
+
+CLASSES:
+  SimilaritySearchResultPlot:
+    Line: 4
+    Doc: Helper class for visualizing similarity search results
+    Instance methods: __init__, _calculate_cosine_similarity, create_visualization
+
+FUNCTIONS:
+  __init__:
+    Line: 7
+    Args: query_vector: List[float], metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Complexity: 2
+  _calculate_cosine_similarity:
+    Line: 19
+    Args: a: List[float], b: List[float]
+    Returns: float
+    Doc: Calculate cosine similarity between two vectors.
+    Complexity: 2
+  create_visualization:
+    Line: 30
+    Returns: go.Figure
+    Doc: Create a visualization of similarity scores
+    Complexity: 3
+  cosine_similarity_matrix:
+    Line: 52
+    Args: metadata_vectors: List[List[float]], similarity_threshold: float = 0.7
+    Returns: dict
+    Doc: Calculate and visualize cosine similarity matrix
+    Complexity: 4
+
+    IMPORTS:
+      from plotly.subplots import make_subplots
+      import plotly.graph_objects
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/data/ (392 lines)
+================================================================================
+  q1.sql
+    Lines: 34
+    Complexity: 0
+
+    DEPENDENCIES:
+      employees
+      large
+      projects
+      sales
+
+  transactions.sql
+    Lines: 358
+    Complexity: 98
+
+    DEPENDENCIES:
+      customers
+      error_logs
+      inventory_logs
+      json_to_recordset
+      notifications
+      order_items
+      orders
+      payment
+      payments
+      product
+      products
+      transaction_logs
+      v_customer_tier
+      v_order_id
+      v_price
+
+    COMMENTS:
+      Line 29: Start transaction
+      Line 32: Generate transaction ID
+      Line 35: Log transaction start
+      Line 50: Validate customer exists
+      Line 56: Get customer tier for discount calculation
+      Line 61: Set discount rate based on customer tier
+      Line 70: Create new order
+      Line 87: Process each order item
+      Line 93: Validate product exists and get price
+      Line 103: Check if enough stock is available
+      Line 109: Add order item
+      Line 124: Update product stock
+      Line 130: Add to order total
+      Line 133: Log inventory change
+      Line 153: Calculate shipping cost based on total amount
+      Line 159: Free shipping for orders over $100
+      Line 162: Calculate tax (assume 7% tax rate)
+      Line 166: Apply discount
+      Line 169: Calculate final amount
+      Line 172: Update order with final amounts
+      Line 183: Process payment
+      Line 185: Simulate payment processing
+      Line 202: Simulate payment gateway call
+      Line 203: In real implementation, you would call a payment gateway API here
+      Line 204: 95% success rate for demonstration
+      Line 211: Update payment status
+      Line 219: Log payment failure
+      Line 236: Update order status
+      Line 245: Rollback transaction
+      Line 250: Update order status to CONFIRMED if everything succeeded
+      Line 256: Log transaction completion
+      Line 273: Send notification (simulated here)
+      Line 290: Set output parameters
+      Line 294: Commit transaction
+      Line 299: Log error
+      Line 316: Update order status if order was created
+      Line 324: Set output parameters
+      Line 328: Rollback transaction
+      Line 333: Example call:
+      Line 334: DO $$
+DECLARE
+    v_order_id INT;
+    v_status VARCHAR(50);
+    v_message VARCHAR(500);
+    v_items JSON := '[
+        {"product_id": 101, "quantity": 2},
+        {"product_id": 203, "quantity": 1}
+    ]';
+BEGIN
+    CALL process_order(
+        1001,                 -- customer_id
+        CURRENT_DATE,         -- order_date
+        v_items,              -- items JSON
+        'CREDIT_CARD',        -- payment_method
+        v_order_id,           -- OUT parameter
+        v_status,             -- OUT parameter
+        v_message             -- OUT parameter
+    );
+    
+    RAISE NOTICE 'Status: %, Message: %, Order ID: %', v_status, v_message, v_order_id;
+END;
+$$;
+      Line 346: customer_id
+      Line 347: order_date
+      Line 348: items JSON
+      Line 349: payment_method
+      Line 350: OUT parameter
+      Line 351: OUT parameter
+      Line 352: OUT parameter
+
+
+================================================================================
+R:/Projects/sql_agent/sql_agent/utils/ (68 lines)
+================================================================================
+  regex_search.py
+    Lines: 68
+    Complexity: 5
+
+FUNCTIONS:
+  search_sql_content:
+    Line: 4
+    Args: content: str
+    Returns: Dict[Tuple[str, List[str]]]
+    Doc: Search SQL content using regex patterns for various database objects.
+    Complexity: 5
+
+    IMPORTS:
+      from typing import Dict
+      from typing import List
+      from typing import Optional
+      import re
+
+
+================================================================================
+R:/Projects/sql_agent/tests/ (55 lines)
+================================================================================
+  conftest.py
+    Lines: 23
+    Complexity: 2
+
+FUNCTIONS:
+  mock_db_connection:
+    Line: 10
+    Doc: Create mock database connection for testing
+    Decorators: pytest.fixture
+    Complexity: 1
+  in_memory_db:
+    Line: 18
+    Doc: Create in-memory SQLite database for testing
+    Decorators: pytest.fixture
+    Complexity: 1
+
+    IMPORTS:
+      from unittest.mock import Mock
+      import logging
+      import pytest
+      import sqlite3
+
+  test_sql_agent.py
+    Lines: 32
+    Complexity: 2
+
+FUNCTIONS:
+  test_metadata_extraction:
+    Line: 5
+    Args: mock_db_connection
+    Doc: Test metadata extraction from SQL files
+    Complexity: 1
+  test_query_generation:
+    Line: 29
+    Doc: Test query generation using regex search
+    Complexity: 1
+
+    IMPORTS:
+      from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
+      from typing import Any
+      from typing import Dict
+      from typing import List
+      from unittest.mock import Mock
+      import pytest
+      import re

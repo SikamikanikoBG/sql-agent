@@ -1,6 +1,0 @@
-{
-    "openai_api_key": "",
-    "langgraph_path": "",
-    "database_url": "postgresql://localhost:5432/test_db",
-    "metadata_dir": "/tmp/metadata"
-}
