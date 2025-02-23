@@ -24,9 +24,9 @@ class MetadataExtractor:
     def __init__(self):
         self._setup_logging()
         self.patterns = {
-            'table': re.compile(r'CREATE\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL),
-            'view': re.compile(r'CREATE\s+VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL),
-            'procedure': re.compile(r'CREATE\s+PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?);', re.IGNORECASE | re.DOTALL),
+            'table': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
             'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
             'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
         }
@@ -167,19 +167,62 @@ class MetadataExtractor:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
             
-            # Remove comments and split into statements
-            content = re.sub(r'--.*$', '', content, flags=re.MULTILINE)
-            content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-            statements = [s.strip() for s in content.split(';') if s.strip()]
+            # Handle comments and split into statements more carefully
+            # Keep comments for documentation but mark for parsing
+            content = re.sub(r'--.*$', lambda m: f'/*{m.group(0)}*/', content, flags=re.MULTILINE)
+            
+            # Split on statement terminators while respecting delimiters
+            statements = []
+            current_stmt = []
+            in_string = False
+            in_block = False
+            delimiter = ';'
+            
+            for line in content.splitlines():
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                    
+                # Handle DELIMITER changes
+                if stripped.upper().startswith('DELIMITER'):
+                    if len(stripped.split()) > 1:
+                        delimiter = stripped.split()[1]
+                        continue
+                
+                # Track string literals and block comments
+                for i, char in enumerate(line):
+                    if char == "'" and (i == 0 or line[i-1] != '\\'):
+                        in_string = not in_string
+                    elif not in_string and line[i:i+2] == '/*':
+                        in_block = True
+                    elif not in_string and line[i-1:i+1] == '*/':
+                        in_block = False
+                
+                current_stmt.append(line)
+                
+                # Check for statement terminator
+                if not in_string and not in_block and stripped.endswith(delimiter):
+                    statements.append('\n'.join(current_stmt))
+                    current_stmt = []
+            
+            # Add any remaining statement
+            if current_stmt:
+                statements.append('\n'.join(current_stmt))
+                
             logger.info(f"Found {len(statements)} SQL statements in {file_path}")
             
             # Extract tables
             for statement in statements:
-                if 'CREATE TABLE' in statement.upper():
+                # Normalize statement for parsing
+                normalized_stmt = ' '.join(
+                    line for line in statement.splitlines()
+                    if not line.strip().startswith('--')
+                )
+                
+                # Extract tables
+                if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE', normalized_stmt, re.IGNORECASE):
                     try:
-                        # Add back semicolon for pattern matching
-                        statement = statement.strip() + ';'
-                        match = self.patterns['table'].search(statement)
+                        match = self.patterns['table'].search(normalized_stmt)
                         if match:
                             name, definition = match.groups()
                             clean_name = name.strip('[] \n\t')
