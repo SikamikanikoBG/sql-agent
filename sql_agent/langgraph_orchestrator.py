@@ -309,12 +309,18 @@ Validation Results:"""
         if metadata.get("tables"):
             sections.append("Tables:")
             for table in metadata["tables"]:
-                sections.append(f"- {table}")
-                if isinstance(table, str) and metadata.get("schemas", {}).get(table):
-                    schema = metadata["schemas"][table]
-                    if isinstance(schema, list):
-                        for column in schema:
-                            sections.append(f"  * {column['name']}: {column['type']}")
+                if isinstance(table, dict):
+                    table_name = table.get("name", "unknown")
+                    database = table.get("database", "")
+                    prefix = f"[{database}]." if database else ""
+                    sections.append(f"- {prefix}{table_name}")
+                    if metadata.get("schemas", {}).get(table_name):
+                        schema = metadata["schemas"][table_name]
+                        if isinstance(schema, list):
+                            for column in schema:
+                                sections.append(f"  * {column['name']}: {column['type']}")
+                else:
+                    sections.append(f"- {table}")
         
         if metadata.get("views"):
             sections.append("\nViews:")

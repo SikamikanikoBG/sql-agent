@@ -13,6 +13,7 @@ class SQLObject:
     name: str
     definition: str
     source_file: str
+    database: Optional[str] = None
     schema: Optional[List[Dict[str, str]]] = None
     parameters: Optional[List[Dict[str, str]]] = None
     description: Optional[str] = None
@@ -37,6 +38,31 @@ class MetadataExtractor:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
     
+    def _extract_database_name(self, sql_content: str, table_name: str) -> Optional[str]:
+        """Extract database name from USE statement or fully qualified name.
+        
+        Args:
+            sql_content: Full SQL content
+            table_name: Table name to check for database prefix
+            
+        Returns:
+            Database name if found
+        """
+        # Check for USE DATABASE statement before CREATE TABLE
+        use_db_pattern = re.compile(r'USE\s+(\[?[\w]+\]?)\s*;', re.IGNORECASE)
+        matches = use_db_pattern.finditer(sql_content)
+        last_use_db = None
+        for match in matches:
+            last_use_db = match.group(1).strip('[]')
+            
+        # Check if table name is fully qualified with database
+        if '.' in table_name:
+            parts = table_name.split('.')
+            if len(parts) >= 3:  # [database].[schema].[table]
+                return parts[0].strip('[]')
+            
+        return last_use_db
+
     def _extract_table_columns(self, create_statement: str) -> List[Dict[str, str]]:
         """Extract column definitions from CREATE TABLE statement.
         
@@ -139,11 +165,15 @@ class MetadataExtractor:
                 columns = self._extract_table_columns(definition)
                 relationships = self._extract_foreign_keys(definition)
                 
+                clean_name = name.strip()
+                database_name = self._extract_database_name(content, clean_name)
+                
                 sql_object = SQLObject(
                     type="table",
-                    name=name.strip(),
+                    name=clean_name,
                     definition=definition.strip(),
                     source_file=file_path,
+                    database=database_name,
                     schema=columns
                 )
                 
