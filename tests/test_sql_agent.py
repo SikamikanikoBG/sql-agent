@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import Mock
+from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator  # Import necessary module
 
 def test_metadata_extraction(mock_db_connection):
     """Test metadata extraction from SQL files"""
