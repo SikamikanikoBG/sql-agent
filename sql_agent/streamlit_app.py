@@ -97,11 +97,26 @@ class SQLAgentApp:
                     
                 st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
             
-                # Add metadata inspection
-                with st.sidebar.expander("🔍 Inspect Full Metadata", expanded=False):
-                    st.json(metadata)
+                # Add metadata inspection to main frame
+                st.markdown("### 📚 Database Metadata")
+                col1, col2 = st.columns(2)
                 
-                self._display_metadata_stats(metadata)
+                with col1:
+                    with st.expander("🔍 Database Objects", expanded=True):
+                        stats = metadata.get("statistics", {})
+                        object_counts = stats.get("object_counts", {})
+                        st.markdown(f"""
+                        - 📝 Tables: {object_counts.get('tables', 0)}
+                        - 📊 Views: {object_counts.get('views', 0)}
+                        - 🔧 Procedures: {object_counts.get('procedures', 0)}
+                        - 🔗 Relationships: {stats.get('relationship_count', 0)}
+                        - ⚠️ Errors: {stats.get('error_count', 0)}
+                        """)
+                
+                with col2:
+                    with st.expander("🔍 Full Metadata Structure", expanded=False):
+                        st.json(metadata)
+                
                 return metadata
                 
         except Exception as e:
@@ -109,19 +124,6 @@ class SQLAgentApp:
             st.error(f"❌ Error loading metadata: {str(e)}")
             return None
             
-    def _display_metadata_stats(self, metadata: Dict):
-        """Display metadata statistics in the sidebar."""
-        with st.sidebar.expander("📊 Knowledge Base Stats", expanded=True):
-            stats = metadata.get("statistics", {})
-            object_counts = stats.get("object_counts", {})
-            
-            st.markdown(f"""
-            - 📝 Tables: {object_counts.get('tables', 0)}
-            - 📊 Views: {object_counts.get('views', 0)}
-            - 🔧 Procedures: {object_counts.get('procedures', 0)}
-            - 🔗 Relationships: {stats.get('relationship_count', 0)}
-            - ⚠️ Errors: {stats.get('error_count', 0)}
-            """)
             
     def process_query(self, query: str, metadata: Dict) -> None:
         """Process a natural language query and display results.
@@ -156,13 +158,14 @@ class SQLAgentApp:
         st.markdown("### 🤖 Processing Steps")
         for step_name, step_data in results.agent_interactions.items():
             with st.expander(f"Step: {step_name}", expanded=False):
-                st.markdown("**System Prompt:**")
+                st.markdown(f"**🤖 Agent Model:** {self.agent.model_name}")
+                st.markdown("**📝 System Prompt:**")
                 st.code(step_data["system_prompt"], language="text")
-                st.markdown("**User Input:**")
+                st.markdown("**📥 User Input:**")
                 st.code(step_data["user_prompt"], language="text")
-                st.markdown("**Agent Response:**")
+                st.markdown("**📤 Agent Response:**")
                 st.code(step_data["result"], language="text")
-                st.markdown(f"*Tokens used: {step_data['tokens_used']}*")
+                st.markdown(f"*🎯 Tokens used: {step_data['tokens_used']}*")
         
         # Display relevant context and similarity search results
         if results.similarity_search or results.relevant_files:
@@ -181,11 +184,20 @@ class SQLAgentApp:
                             except Exception as e:
                                 st.error(f"Error reading file: {str(e)}")
             
-            # Display similar patterns
+            # Display vector store and similar patterns
             if results.similarity_search:
-                with st.expander("🔍 Similar SQL Patterns", expanded=False):
-                    # Display raw examples
-                    st.markdown("#### Raw Examples")
+                with st.expander("🔍 Vector Store Results", expanded=False):
+                    st.markdown("#### 🧠 Knowledge Base")
+                    st.markdown(f"""
+                    - 🔤 Embedding Model: {type(self.agent.embeddings).__name__}
+                    - 📚 Vector Store: {type(self.agent.vector_store).__name__}
+                    - 🎯 Similarity Threshold: {self.agent.similarity_threshold}
+                    """)
+                    
+                    st.markdown("#### 📊 Similar Examples Used in Prompts")
+                    st.code(self.agent._format_examples(results.similarity_search), language="text")
+                    
+                    st.markdown("#### 🔍 Raw Vector Search Results")
                     for score, content in results.similarity_search:
                         with st.expander(f"Example (Score: {score:.3f})", expanded=False):
                             if isinstance(content, dict):
@@ -196,8 +208,7 @@ class SQLAgentApp:
                             else:
                                 st.code(str(content), language="sql")
                     
-                    # Visualize similarities
-                    st.markdown("#### Similarity Analysis")
+                    st.markdown("#### 📈 Similarity Distribution")
                     scores = [score for score, _ in results.similarity_search]
                     st.bar_chart(scores)
         
