@@ -303,7 +303,7 @@ class SQLAgentApp:
                 sql_files = list(Path(data_folder).glob("*.sql"))
                 
                 logger.info("Starting query processing...")
-                results, usage_stats = await self.agent.process_query(query, metadata)
+                results, usage_stats = self.agent.process_query(query, metadata)
                 logger.info("Query processing completed")
                 
                 if not results:
