@@ -24,9 +24,28 @@ class MetadataExtractor:
     def __init__(self):
         self._setup_logging()
         self.patterns = {
-            'table': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Regular tables
+            'table': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Temporary tables
+            'temp_table': re.compile(r'CREATE\s+(?:GLOBAL\s+)?TEMPORARY\s+TABLE\s+([^\s(]+)\s*\((.*?)\);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Table variables
+            'table_var': re.compile(r'DECLARE\s+(@\w+)\s+TABLE\s*\((.*?)\)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # CTEs (Common Table Expressions)
+            'cte': re.compile(r'WITH\s+([^\s(]+)\s+AS\s*\((.*?)\)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Views
             'view': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Procedures
             'procedure': re.compile(r'CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)(?:\s*\((.*?)\))?\s*(.*?)(?:\$\$|;)', re.IGNORECASE | re.DOTALL | re.MULTILINE),
+            # Column definitions
+            'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)\s*(?:CONSTRAINT\s+[^\s,()]+)?(?:DEFAULT\s+[^,)]+)?(?:NULL|NOT\s+NULL)?', re.IGNORECASE),
+            # Foreign keys
+            'foreign_key': re.compile(r'(?:CONSTRAINT\s+\w+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE),
+            # Primary keys
+            'primary_key': re.compile(r'(?:CONSTRAINT\s+\w+\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)', re.IGNORECASE),
+            # Indexes
+            'index': re.compile(r'CREATE\s+(?:UNIQUE\s+)?INDEX\s+([^\s(]+)\s+ON\s+([^\s(]+)\s*\((.*?)\)', re.IGNORECASE),
+            # Joins
+            'join': re.compile(r'(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN\s+([^\s]+)\s+(?:AS\s+)?(\w+)?(?:\s+ON\s+(.*?))?(?=\s+(?:INNER|LEFT|RIGHT|FULL|CROSS)?\s*JOIN|\s+WHERE|\s+GROUP|\s+ORDER|\s+HAVING|\s*$)', re.IGNORECASE),
             'column': re.compile(r'\s*([^\s,()]+)\s+([^\s,()]+(?:\([^)]*\))?)', re.IGNORECASE),
             'foreign_key': re.compile(r'FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^\s(]+)\s*\(([^)]+)\)', re.IGNORECASE)
         }
@@ -159,7 +178,18 @@ class MetadataExtractor:
         file_metadata = {
             "objects": [],
             "relationships": [],
-            "schemas": {}
+            "schemas": {},
+            "temporary_objects": [],
+            "table_variables": [],
+            "ctes": [],
+            "indexes": [],
+            "joins": [],
+            "constraints": {
+                "primary_keys": [],
+                "foreign_keys": [],
+                "unique": [],
+                "check": []
+            }
         }
         
         logger.info(f"Processing SQL file: {file_path}")
@@ -219,10 +249,55 @@ class MetadataExtractor:
                     if not line.strip().startswith('--')
                 )
                 
-                # Extract tables
-                if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE', normalized_stmt, re.IGNORECASE):
-                    try:
-                        match = self.patterns['table'].search(normalized_stmt)
+                # Extract all types of tables and related objects
+                try:
+                    # Regular tables
+                    if re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE(?!\s+TEMPORARY)', normalized_stmt, re.IGNORECASE):
+                        self._extract_table(normalized_stmt, file_metadata, content)
+                    
+                    # Temporary tables
+                    if re.search(r'CREATE\s+(?:GLOBAL\s+)?TEMPORARY\s+TABLE', normalized_stmt, re.IGNORECASE):
+                        self._extract_temp_table(normalized_stmt, file_metadata)
+                    
+                    # Table variables
+                    if re.search(r'DECLARE\s+@\w+\s+TABLE', normalized_stmt, re.IGNORECASE):
+                        self._extract_table_var(normalized_stmt, file_metadata)
+                    
+                    # CTEs
+                    if re.search(r'WITH\s+\w+\s+AS\s*\(', normalized_stmt, re.IGNORECASE):
+                        self._extract_cte(normalized_stmt, file_metadata)
+                    
+                    # Indexes
+                    if re.search(r'CREATE\s+(?:UNIQUE\s+)?INDEX', normalized_stmt, re.IGNORECASE):
+                        self._extract_index(normalized_stmt, file_metadata)
+                    
+                    # Joins
+                    joins = self.patterns['join'].finditer(normalized_stmt)
+                    for join in joins:
+                        target_table, alias, condition = join.groups()
+                        file_metadata["joins"].append({
+                            "target_table": target_table.strip(),
+                            "alias": alias.strip() if alias else None,
+                            "condition": condition.strip() if condition else None
+                        })
+                    
+                    # Primary Keys
+                    pk_matches = self.patterns['primary_key'].finditer(normalized_stmt)
+                    for match in pk_matches:
+                        columns = [col.strip() for col in match.group(1).split(',')]
+                        file_metadata["constraints"]["primary_keys"].append({
+                            "columns": columns
+                        })
+                    
+                    # Foreign Keys
+                    fk_matches = self.patterns['foreign_key'].finditer(normalized_stmt)
+                    for match in fk_matches:
+                        source_cols, target_table, target_cols = match.groups()
+                        file_metadata["constraints"]["foreign_keys"].append({
+                            "source_columns": [col.strip() for col in source_cols.split(',')],
+                            "target_table": target_table.strip(),
+                            "target_columns": [col.strip() for col in target_cols.split(',')]
+                        })
                         if match:
                             name, definition = match.groups()
                             clean_name = name.strip('[] \n\t')
@@ -429,3 +504,76 @@ class MetadataExtractor:
                 "schema_coverage": 0
             }
         }
+    def _extract_table(self, stmt: str, metadata: Dict[str, Any], full_content: str) -> None:
+        """Extract regular table metadata."""
+        match = self.patterns['table'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            clean_name = name.strip('[] \n\t')
+            logger.info(f"Processing table: {clean_name}")
+            
+            columns = self._extract_table_columns(definition)
+            relationships = self._extract_foreign_keys(definition)
+            database_name = self._extract_database_name(full_content, clean_name)
+            
+            sql_object = SQLObject(
+                type="table",
+                name=clean_name,
+                definition=definition.strip(),
+                source_file=metadata.get("source_file", "unknown"),
+                database=database_name,
+                schema=columns
+            )
+            
+            metadata["objects"].append(vars(sql_object))
+            metadata["relationships"].extend(relationships)
+            metadata["schemas"][clean_name] = columns
+
+    def _extract_temp_table(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract temporary table metadata."""
+        match = self.patterns['temp_table'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            clean_name = name.strip('[] \n\t')
+            columns = self._extract_table_columns(definition)
+            
+            metadata["temporary_objects"].append({
+                "type": "temp_table",
+                "name": clean_name,
+                "columns": columns
+            })
+
+    def _extract_table_var(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract table variable metadata."""
+        match = self.patterns['table_var'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            columns = self._extract_table_columns(definition)
+            
+            metadata["table_variables"].append({
+                "name": name,
+                "columns": columns
+            })
+
+    def _extract_cte(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract CTE metadata."""
+        match = self.patterns['cte'].search(stmt)
+        if match:
+            name, definition = match.groups()
+            
+            metadata["ctes"].append({
+                "name": name.strip(),
+                "definition": definition.strip()
+            })
+
+    def _extract_index(self, stmt: str, metadata: Dict[str, Any]) -> None:
+        """Extract index metadata."""
+        match = self.patterns['index'].search(stmt)
+        if match:
+            name, table, columns = match.groups()
+            
+            metadata["indexes"].append({
+                "name": name.strip(),
+                "table": table.strip(),
+                "columns": [col.strip() for col in columns.split(',')]
+            })
