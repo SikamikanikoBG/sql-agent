@@ -17,7 +17,7 @@ class SQLAgentApp:
     """Streamlit application for SQL query generation and analysis."""
     
     def __init__(self):
-        self.agent = SQLAgentOrchestrator()
+        self.agent = None
         self.metadata_extractor = MetadataExtractor()
         self._init_session_state()
         
@@ -92,6 +92,10 @@ class SQLAgentApp:
         return True
         
     def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
+        # Return existing metadata if already loaded
+        if st.session_state.metadata is not None and self.agent is not None:
+            return st.session_state.metadata
+
         try:
             data_path = Path(data_folder)
             if not data_path.exists():
@@ -104,18 +108,19 @@ class SQLAgentApp:
                 return None
                 
             with st.spinner("Loading database schema and initializing vector store..."):
-                # Extract metadata
+                # Extract metadata first
                 metadata = self.metadata_extractor.extract_metadata_from_sql_files(
                     [str(f) for f in sql_files]
                 )
                 
-                # Initialize vector store if not already initialized
-                if not self.agent.vector_store:
-                    self.agent.initialize_vector_store([str(f) for f in sql_files])
-                
                 if not metadata:
                     st.warning("⚠️ No metadata extracted")
                     return None
+
+                # Initialize agent and vector store only once
+                if self.agent is None:
+                    self.agent = SQLAgentOrchestrator()
+                    self.agent.initialize_vector_store([str(f) for f in sql_files])
                 
                 st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
                 st.session_state.metadata = metadata
