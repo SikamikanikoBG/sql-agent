@@ -1,42 +1,7 @@
 {
-    "tables": [
-        {
-            "name": "employees",
-            "columns": [
-                {"name": "id", "type": "NUMBER", "nullable": false},
-                {"name": "first_name", "type": "VARCHAR(255)"},
-                {"name": "last_name", "type": "VARCHAR(255)"},
-                {"name": "salary", "type": "DECIMAL(10, 2)"},
-                {"name": "city", "type": "VARCHAR(255)"}
-            ],
-            "constraints": {
-                "primary_key": ["id"]
-            }
-        },
-        {
-            "name": "projects",
-            "columns": [
-                {"name": "id", "type": "NUMBER", "nullable": false},
-                {"name": "name", "type": "VARCHAR(255)", "unique": true},
-                {"name": "description", "type": "TEXT"},
-                {"name": "status", "type": "ENUM('active', 'inactive')"}
-            ],
-            "constraints": {
-                "primary_key": ["id"]
-            }
-        },
-        {
-            "name": "sales",
-            "columns": [
-                {"name": "id", "type": "NUMBER", "nullable": false},
-                {"name": "customer_id", "type": "NUMBER"},
-                {"name": "amount", "type": "DECIMAL(10, 2)"},
-                {"name": "created_date", "type": "DATE"}
-            ],
-            "constraints": {
-                "primary_key": ["id"],
-                "foreign_keys": [["customer_id", "employees.id"]]
-            }
-        }
-    ]
+    "tables": [],
+    "views": [],
+    "procedures": [],
+    "schemas": {},
+    "relationships": []
 }

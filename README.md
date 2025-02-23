@@ -50,19 +50,15 @@ streamlit run sql_agent/streamlit_app.py
 
 Input:
 ```
-Show me all transactions of our employees
+Your natural language query here
 ```
 
 Output:
 ```sql
-SELECT 
-    e.first_name,
-    e.last_name,
-    s.amount,
-    s.created_date
-FROM employees e
-LEFT JOIN sales s ON e.id = s.customer_id
-ORDER BY s.created_date DESC;
+-- The agent will generate SQL based on your database structure
+SELECT column1, column2
+FROM your_table
+WHERE condition;
 ```
 
 ## Architecture
