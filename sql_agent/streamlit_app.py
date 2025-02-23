@@ -30,6 +30,8 @@ class SQLAgentApp:
             st.session_state.show_schema = False
         if 'current_tab' not in st.session_state:
             st.session_state.current_tab = "Query Generator"
+        if 'processing' not in st.session_state:
+            st.session_state.processing = False
             
     def setup_sidebar(self) -> bool:
         with st.sidebar:
@@ -124,6 +126,11 @@ class SQLAgentApp:
             return None
             
     def render_main_interface(self):
+        # Show processing indicator
+        if st.session_state.get('processing', False):
+            with st.spinner("🤖 Generating SQL query..."):
+                st.empty()
+            
         # Top navigation
         st.markdown("""
             <style>
@@ -169,10 +176,14 @@ class SQLAgentApp:
                     st.warning("⚠️ Please enter a query description")
                     return
                 
-                # Get current event loop
-                loop = asyncio.get_event_loop()
-                # Run process_query in the current event loop
-                loop.create_task(self.process_query(query, st.session_state.metadata))
+                # Use asyncio.run in a separate thread to avoid blocking Streamlit
+                import threading
+                def run_async():
+                    asyncio.run(self.process_query(query, st.session_state.metadata))
+                
+                thread = threading.Thread(target=run_async)
+                thread.start()
+                st.experimental_rerun()
             
             right.markdown("""
                 <div style='padding: 8px 0 0 20px; color: #666;'>
@@ -292,7 +303,7 @@ class SQLAgentApp:
             
     async def process_query(self, query: str, metadata: Dict) -> None:
         try:
-            with st.spinner("🤖 Generating SQL query..."):
+            st.session_state.processing = True
                 try:
                     # Get SQL files from the data directory
                     data_folder = "./sql_agent/data"
