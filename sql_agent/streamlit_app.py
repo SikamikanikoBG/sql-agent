@@ -176,14 +176,7 @@ class SQLAgentApp:
                     st.warning("⚠️ Please enter a query description")
                     return
                 
-                # Use asyncio.run in a separate thread to avoid blocking Streamlit
-                import threading
-                def run_async():
-                    asyncio.run(self.process_query(query, st.session_state.metadata))
-                
-                thread = threading.Thread(target=run_async)
-                thread.start()
-                st.rerun()
+                self.process_query(query, st.session_state.metadata)
             
             right.markdown("""
                 <div style='padding: 8px 0 0 20px; color: #666;'>
