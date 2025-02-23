@@ -186,10 +186,12 @@ class SQLAgentApp:
             
             # Similar code snippets
             if 'last_query' in st.session_state and hasattr(st.session_state, 'last_result'):
-                with st.expander("📚 Similar Code Snippets", expanded=False):
+                with st.expander("📚 Similar Code Snippets", expanded=True):
                     if hasattr(st.session_state.last_result, 'similarity_search'):
                         similar_examples = st.session_state.last_result.similarity_search
-                        if similar_examples:
+                        if not similar_examples:
+                            st.warning("⚠️ No similar information found in the SQL codebase")
+                        else:
                             for i, example in enumerate(similar_examples, 1):
                                 if isinstance(example, dict):
                                     st.markdown(f"**Example {i} (Similarity: {example['score']:.2f})**")

@@ -207,6 +207,8 @@ Validation Results:"""
             
             # Format similar examples for display
             with st.spinner("📝 Formatting examples..."):
+                if not similar_examples:
+                    st.warning("⚠️ No similar information found in the SQL codebase")
                 formatted_examples = []
             for score, content in similar_examples:
                 if isinstance(content, dict):
