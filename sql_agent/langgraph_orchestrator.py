@@ -188,7 +188,7 @@ Validation Results:"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
-    async def process_query(self, query: str, metadata: Dict, sql_files: Optional[List[str]] = None) -> Tuple[QueryResult, UsageStats]:
+    def process_query(self, query: str, metadata: Dict, sql_files: Optional[List[str]] = None) -> Tuple[QueryResult, UsageStats]:
         """Process a user's natural language query and generate an SQL query.
         
         Args:
@@ -206,10 +206,10 @@ Validation Results:"""
             
             # Initialize vector store if needed
             if sql_files and not self.vector_store:
-                await self.initialize_vector_store(sql_files)
+                self.initialize_vector_store(sql_files)
             
             # Find similar examples and get vectors
-            similar_examples, query_vector, metadata_vectors = await self._find_similar_examples(query)
+            similar_examples, query_vector, metadata_vectors = self._find_similar_examples(query)
             
             # Format similar examples for display
             formatted_examples = []
@@ -233,7 +233,7 @@ Validation Results:"""
             
             logger.info("Starting intent parsing...")
             try:
-                intent_result = await self.intent_chain.ainvoke({
+                intent_result = self.intent_chain.invoke({
                     "query": query,
                     "metadata": formatted_metadata,
                     "similar_examples": formatted_examples
@@ -247,7 +247,7 @@ Validation Results:"""
             # Generate query
             logger.info("Starting query generation...")
             try:
-                query_result = await self.query_chain.ainvoke({
+                query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
                     "metadata": formatted_metadata,
                     "similar_examples": formatted_examples
@@ -261,7 +261,7 @@ Validation Results:"""
             # Validate generated query
             logger.info("Starting query validation...")
             try:
-                validation_result = await self.validation_chain.ainvoke({
+                validation_result = self.validation_chain.invoke({
                     "query": query_result.content,
                     "metadata": formatted_metadata
                 })
@@ -325,7 +325,7 @@ Validation Results:"""
                 error=str(e)
             ), self.usage_stats
             
-    async def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
+    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
         """Find similar SQL examples from the vector store.
         
         Args:
@@ -499,7 +499,7 @@ Validation Results:"""
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
-    async def initialize_vector_store(self, sql_files: List[str]) -> None:
+    def initialize_vector_store(self, sql_files: List[str]) -> None:
         """Initialize the vector store with SQL examples.
         
         Args:

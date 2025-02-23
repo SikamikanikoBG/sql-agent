@@ -91,7 +91,7 @@ class SQLAgentApp:
             
         return True
         
-    async def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
+    def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
         try:
             data_path = Path(data_folder)
             if not data_path.exists():
@@ -301,7 +301,7 @@ class SQLAgentApp:
                     st.markdown("**Generated SQL:**")
                     st.code(sql, language="sql")
             
-    async def process_query(self, query: str, metadata: Dict) -> None:
+    def process_query(self, query: str, metadata: Dict) -> None:
         try:
             st.session_state.processing = True
             try:
@@ -381,7 +381,7 @@ class SQLAgentApp:
             logger.error(f"Error processing query: {str(e)}")
             st.error(f"❌ Error: {str(e)}")
 
-async def main():
+def main():
     # Page config
     st.set_page_config(
         page_title="SQL Agent",
@@ -423,7 +423,7 @@ async def main():
         return
         
     # Load metadata
-    metadata = await app.load_metadata()
+    metadata = app.load_metadata()
     if not metadata:
         return
         
@@ -431,4 +431,4 @@ async def main():
     app.render_main_interface()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
