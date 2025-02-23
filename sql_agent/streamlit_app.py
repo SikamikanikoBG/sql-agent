@@ -4,7 +4,6 @@ import tempfile
 from typing import Dict, List
 import re
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
-from sql_agent.metadata_extractor import extract_metadata_from_sql_files
 
 def main():
     st.title("SQL Agent - Query Generation and Execution")
@@ -38,7 +37,7 @@ def main():
         return
 
     # Initialize agent
-    agent = SQLAgentOrchestrator(openai_api_key=api_key)
+    agent = SQLAgentOrchestrator()
 
     # Fixed data folder path
     data_folder = "./sql_agent/data"
@@ -91,7 +90,7 @@ def main():
                 # Use the already extracted metadata
                 sql_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) 
                            if f.endswith('.sql')]
-                metadata = extract_metadata_from_sql_files(sql_files, openai_api_key=api_key)
+                metadata = extract_metadata_from_sql_files(sql_files)
 
                 # Initialize agent steps display
                 st.markdown("### 🤖 SQL Agent Workflow")
