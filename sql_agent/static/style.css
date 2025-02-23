@@ -1,0 +1,58 @@
+/* Custom CSS for SQL Agent */
+.stApp {
+    background-color: #f8f9fa;
+}
+
+.main-header {
+    background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+    padding: 2rem;
+    border-radius: 10px;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.query-input {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.metadata-card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border-left: 4px solid #1e3c72;
+    margin: 1rem 0;
+}
+
+.results-section {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-top: 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.generated-query {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #28a745;
+}
+
+.sidebar .element-container {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}

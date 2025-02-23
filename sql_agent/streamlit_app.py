@@ -97,25 +97,59 @@ class SQLAgentApp:
                     
                 st.sidebar.success(f"📁 Loaded {len(sql_files)} SQL files")
             
-                # Add metadata inspection to main frame
-                st.markdown("### 📚 Database Metadata")
-                col1, col2 = st.columns(2)
+                # Enhanced metadata display
+                st.markdown("""
+                    <div class="metadata-card">
+                        <h3>📚 Database Schema Overview</h3>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col1, col2, col3, col4, col5 = st.columns(5)
+                stats = metadata.get("statistics", {})
+                object_counts = stats.get("object_counts", {})
                 
                 with col1:
-                    with st.expander("🔍 Database Objects", expanded=True):
-                        stats = metadata.get("statistics", {})
-                        object_counts = stats.get("object_counts", {})
-                        st.markdown(f"""
-                        - 📝 Tables: {object_counts.get('tables', 0)}
-                        - 📊 Views: {object_counts.get('views', 0)}
-                        - 🔧 Procedures: {object_counts.get('procedures', 0)}
-                        - 🔗 Relationships: {stats.get('relationship_count', 0)}
-                        - ⚠️ Errors: {stats.get('error_count', 0)}
-                        """)
+                    st.markdown("""
+                        <div class="stat-card">
+                            <h4>📝 Tables</h4>
+                            <h2>{}</h2>
+                        </div>
+                    """.format(object_counts.get('tables', 0)), unsafe_allow_html=True)
                 
                 with col2:
-                    with st.expander("🔍 Full Metadata Structure", expanded=False):
-                        st.json(metadata)
+                    st.markdown("""
+                        <div class="stat-card">
+                            <h4>📊 Views</h4>
+                            <h2>{}</h2>
+                        </div>
+                    """.format(object_counts.get('views', 0)), unsafe_allow_html=True)
+                
+                with col3:
+                    st.markdown("""
+                        <div class="stat-card">
+                            <h4>🔧 Procedures</h4>
+                            <h2>{}</h2>
+                        </div>
+                    """.format(object_counts.get('procedures', 0)), unsafe_allow_html=True)
+                
+                with col4:
+                    st.markdown("""
+                        <div class="stat-card">
+                            <h4>🔗 Relations</h4>
+                            <h2>{}</h2>
+                        </div>
+                    """.format(stats.get('relationship_count', 0)), unsafe_allow_html=True)
+                
+                with col5:
+                    st.markdown("""
+                        <div class="stat-card">
+                            <h4>⚠️ Errors</h4>
+                            <h2>{}</h2>
+                        </div>
+                    """.format(stats.get('error_count', 0)), unsafe_allow_html=True)
+                
+                with st.expander("🔍 Detailed Schema Information", expanded=False):
+                    st.json(metadata)
                 
                 return metadata
                 
@@ -212,17 +246,33 @@ class SQLAgentApp:
                     scores = [score for score, _ in results.similarity_search]
                     st.bar_chart(scores)
         
-        # Display generated query
-        st.markdown("### 📝 Generated SQL Query")
+        # Enhanced query results display
+        st.markdown("""
+            <div class="results-section">
+                <h3>📝 Generated SQL Query</h3>
+            </div>
+        """, unsafe_allow_html=True)
+        
         if results.error:
             st.error(f"Error: {results.error}")
         else:
-            st.code(results.generated_query, language="sql")
-            
-            # Add copy button
-            if st.button("📋 Copy Query"):
+            col1, col2 = st.columns([4,1])
+            with col1:
+                st.markdown('<div class="generated-query">', unsafe_allow_html=True)
                 st.code(results.generated_query, language="sql")
-                st.success("Query copied to clipboard!")
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            with col2:
+                if st.button("📋 Copy to Clipboard", type="secondary"):
+                    st.code(results.generated_query, language="sql")
+                    st.success("✅ Query copied!")
+                if st.button("💾 Save Query", type="secondary"):
+                    st.download_button(
+                        label="Download SQL",
+                        data=results.generated_query,
+                        file_name="generated_query.sql",
+                        mime="text/plain"
+                    )
         
         # Display usage statistics
         with st.expander("📊 Usage Statistics", expanded=False):
@@ -238,14 +288,21 @@ def main():
     st.set_page_config(
         page_title="SQL Agent",
         page_icon="🤖",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
     
-    st.title("🤖 SQL Agent - Query Generation and Analysis")
+    # Load custom CSS
+    with open("sql_agent/static/style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    
+    # Main header section
     st.markdown("""
-    Enter your query in natural language, and I'll help you generate the appropriate SQL query.
-    Upload your SQL files to the data folder to enable context-aware query generation.
-    """)
+        <div class="main-header">
+            <h1>🤖 SQL Agent</h1>
+            <p>Your AI-powered SQL assistant for natural language query generation</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # Initialize application
     app = SQLAgentApp()
@@ -259,14 +316,24 @@ def main():
     if not metadata:
         return
         
-    # Query input
+    # Enhanced query input section
+    st.markdown("""
+        <div class="query-input">
+            <h3>🔍 What would you like to query?</h3>
+            <p>Describe your query in natural language, and I'll help you generate the SQL.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     query = st.text_area(
-        "Enter your query in natural language:",
+        "",
+        placeholder="Example: Show me all customers who made purchases last month...",
         height=100,
-        help="Describe what you want to query from the database"
+        help="Be as specific as possible for better results"
     )
     
-    if st.button("🚀 Generate Query", disabled=not query):
+    col1, col2, col3 = st.columns([2,1,2])
+    with col2:
+        if st.button("🚀 Generate SQL Query", type="primary", disabled=not query):
         if not query.strip():
             st.warning("⚠️ Please enter a valid query")
             return
