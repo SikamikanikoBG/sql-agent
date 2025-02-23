@@ -1,28 +1,8 @@
-class MetadataExtractionAgent:
-    def __init__(self):
-        pass
-    
-    def extract_tables(self, sql_content: str) -> List[str]:
-        """Extract table names from SQL content"""
-        
-        try:
-            match = re.search(r'CREATE TABLE (.*)', sql_content)
-            while match:
-                yield match.group(1)
-                match = re.search(r'CREATE TABLE (.*)', sql_content, startposition=len(match.laststring))
-            
-            return []
-        
-        except Exception as e:
-            print(f"Error extracting tables: {str(e)}")
-            return []
+import re
+from typing import List, Dict, Any
 
-# sql_agent/sql_agent.py
 class SQLAgentOrchestrator:
-    def __init__(self):
-        pass
-    
-    def extract_metadata(self, sql_content: str) -> List[str]:
+    def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
         """Extract metadata from SQL content including tables"""
         
         try:
