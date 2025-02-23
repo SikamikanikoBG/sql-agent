@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
-from langchain.text_splitter import SQLTextSplitter
+from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,10 @@ class SQLAgentOrchestrator:
         self.embeddings = OpenAIEmbeddings()
         
         # Initialize text splitter for SQL
-        self.text_splitter = SQLTextSplitter(
+        self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
-            chunk_overlap=200
+            chunk_overlap=200,
+            separators=["\n\n", "\n", " ", ""]
         )
         
         # Setup processing chains
