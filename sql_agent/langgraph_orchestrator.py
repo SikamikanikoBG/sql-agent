@@ -98,12 +98,8 @@ class SQLAgentOrchestrator:
         # Intent parsing chain
         self.intent_prompt = PromptTemplate(
             input_variables=["query", "metadata", "similar_examples"],
-            template="""Based on the database metadata and similar examples below, analyze the user's query intent:
+            template="""Analyze the user's query intent using the context below:
 
-Database Metadata:
-{metadata}
-
-Similar Examples:
 {similar_examples}
 
 User Query:
@@ -122,12 +118,8 @@ Intent Analysis:"""
         # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
             input_variables=["intent", "metadata", "similar_examples"],
-            template="""Generate a MS SQL query based on the analyzed intent and database metadata:
+            template="""Generate a MS SQL query based on the analyzed intent and similar examples:
 
-Database Metadata:
-{metadata}
-
-Similar Examples:
 {similar_examples}
 
 Analyzed Intent:
