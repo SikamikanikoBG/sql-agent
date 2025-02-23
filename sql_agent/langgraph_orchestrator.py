@@ -526,13 +526,33 @@ Validation Results:"""
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                    chunks = self.text_splitter.split_text(content)
                     
-                    texts.extend(chunks)
-                    metadatas.extend([{
-                        "source": file_path,
-                        "chunk_size": len(chunk)
-                    } for chunk in chunks])
+                    # Split SQL into meaningful chunks
+                    sql_statements = [s.strip() for s in content.split(';') if s.strip()]
+                    
+                    for stmt in sql_statements:
+                        # Only store non-trivial SQL statements
+                        if len(stmt.split()) > 5:  # More than 5 words
+                            texts.append(stmt)
+                            metadatas.append({
+                                "source": file_path,
+                                "content": stmt,
+                                "type": "sql_statement"
+                            })
+                            
+                            # Also store the statement with its surrounding context
+                            start_idx = content.find(stmt)
+                            if start_idx >= 0:
+                                context_start = max(0, start_idx - 200)
+                                context_end = min(len(content), start_idx + len(stmt) + 200)
+                                context = content[context_start:context_end]
+                                
+                                texts.append(context)
+                                metadatas.append({
+                                    "source": file_path,
+                                    "content": context,
+                                    "type": "sql_context"
+                                })
                     
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
