@@ -1,3 +1,6 @@
+import re
+from typing import List, Dict, Any
+
 class MetadataExtractionAgent:
     def __init__(self):
         pass

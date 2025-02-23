@@ -15,6 +15,10 @@ def test_metadata_extraction(mock_db_connection):
     );
     """
     
+    # Import necessary modules
+    import re
+    from typing import List, Dict, Any
+    
     # Extract tables using regex search
     agent = SQLAgentOrchestrator()
     extracted_tables = agent.extract_metadata(sql_content)
