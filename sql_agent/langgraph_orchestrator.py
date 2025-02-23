@@ -292,8 +292,8 @@ Validation Results:"""
             k=self.max_examples
         )
         
-        return [(score, content) for score, content in results 
-                if score >= self.similarity_threshold]
+        return [(doc.metadata.get('score', 0.0), doc.page_content) 
+                for doc in results if doc.metadata.get('score', 0.0) >= self.similarity_threshold]
     
     def _format_metadata(self, metadata: Dict) -> str:
         """Format metadata for prompt templates.
