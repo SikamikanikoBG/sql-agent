@@ -459,37 +459,62 @@ Validation Results:"""
             )
             logger.info(f"Initialized vector store with {len(texts)} chunks")
     
-    def extract_metadata(self, sql_content: str) -> List[str]:
-        """Extract metadata from MS SQL content including tables.
+    def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
+        """Extract metadata from MS SQL content including tables and their relationships.
         
         Args:
             sql_content: The SQL content to analyze
             
         Returns:
-            List of table names found in the content
+            Dictionary containing tables and their relationships
         """
         try:
-            tables = []
-            # MS SQL specific patterns
-            patterns = [
-                # Standard CREATE TABLE
-                r'CREATE\s+TABLE\s+(\[?[\w\.\[\]]+\]?)',
-                # Temp tables
-                r'CREATE\s+TABLE\s+(#[\w\.\[\]]+)',
-                # Table variables
-                r'DECLARE\s+@[\w]+\s+TABLE',
-                # Common Table Expressions
-                r'WITH\s+(\[?[\w]+\]?)\s+AS'
-            ]
-            
-            for pattern in patterns:
-                regex = re.compile(pattern, re.IGNORECASE)
-                for match in regex.finditer(sql_content):
-                    table_name = match.group(1).strip('[]')
-                    if table_name and not table_name.startswith('@'):
-                        tables.append(table_name)
-            
-            return list(set(tables))
+            metadata = {
+                "permanent_tables": [],
+                "temp_tables": {},
+                "table_variables": {},
+                "ctes": {}
+            }
+
+            # Extract permanent tables from SELECT/JOIN/etc
+            permanent_pattern = r'(?:FROM|JOIN)\s+(\[?[\w\.\[\]]+\]?)(?:\s|$)'
+            for match in re.finditer(permanent_pattern, sql_content, re.IGNORECASE):
+                table_name = match.group(1).strip('[]')
+                if table_name and not table_name.startswith(('#', '@')):
+                    metadata["permanent_tables"].append(table_name)
+
+            # Extract temp tables and their source tables
+            temp_pattern = r'CREATE\s+TABLE\s+(#[\w\.\[\]]+)\s+(?:AS\s+)?(.*?)(;|\s*CREATE|\s*$)'
+            for match in re.finditer(temp_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                temp_name = match.group(1)
+                definition = match.group(2)
+                source_tables = re.findall(permanent_pattern, definition, re.IGNORECASE)
+                metadata["temp_tables"][temp_name] = {
+                    "definition": definition.strip(),
+                    "source_tables": [t.strip('[]') for t in source_tables if not t.startswith(('#', '@'))]
+                }
+
+            # Extract table variables and their source tables
+            var_pattern = r'DECLARE\s+(@[\w]+)\s+TABLE\s*\((.*?)\)'
+            for match in re.finditer(var_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                var_name = match.group(1)
+                definition = match.group(2)
+                metadata["table_variables"][var_name] = {
+                    "definition": definition.strip()
+                }
+
+            # Extract CTEs and their source tables
+            cte_pattern = r'WITH\s+(\[?[\w]+\]?)\s+AS\s*\((.*?)\)\s*(?:,|SELECT|INSERT|UPDATE|DELETE)'
+            for match in re.finditer(cte_pattern, sql_content, re.IGNORECASE | re.DOTALL):
+                cte_name = match.group(1).strip('[]')
+                definition = match.group(2)
+                source_tables = re.findall(permanent_pattern, definition, re.IGNORECASE)
+                metadata["ctes"][cte_name] = {
+                    "definition": definition.strip(),
+                    "source_tables": [t.strip('[]') for t in source_tables if not t.startswith(('#', '@'))]
+                }
+
+            return metadata
             
         except Exception as e:
             logger.error(f"Error extracting tables: {str(e)}", exc_info=True)
@@ -506,7 +531,10 @@ Validation Results:"""
         """
         if not self.metadata:
             self.metadata = {
-                "tables": [],
+                "permanent_tables": [],
+                "temp_tables": {},
+                "table_variables": {},
+                "ctes": {},
                 "views": [],
                 "procedures": [],
                 "columns": {},
@@ -518,14 +546,29 @@ Validation Results:"""
                 try:
                     with open(file, 'r', encoding='utf-8') as f:
                         sql_content = f.read()
-                        tables = self.extract_metadata(sql_content)
-                        if tables:
-                            self.metadata["tables"].extend(tables)
-                            # Store file-specific metadata
-                            self.metadata[file] = {
-                                "tables": tables,
-                                "content": sql_content
-                            }
+                        file_metadata = self.extract_metadata(sql_content)
+                        
+                        # Merge permanent tables
+                        self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
+                        
+                        # Merge temp tables with their source tables
+                        for temp_name, temp_info in file_metadata["temp_tables"].items():
+                            if temp_name not in self.metadata["temp_tables"]:
+                                self.metadata["temp_tables"][temp_name] = temp_info
+                            else:
+                                # If temp table already exists, merge source tables
+                                existing_sources = set(self.metadata["temp_tables"][temp_name]["source_tables"])
+                                new_sources = set(temp_info["source_tables"])
+                                self.metadata["temp_tables"][temp_name]["source_tables"] = list(existing_sources | new_sources)
+                        
+                        # Merge table variables
+                        self.metadata["table_variables"].update(file_metadata["table_variables"])
+                        
+                        # Merge CTEs
+                        self.metadata["ctes"].update(file_metadata["ctes"])
+                        
+                        # Store file-specific metadata
+                        self.metadata[file] = file_metadata
                 except Exception as e:
                     logger.error(f"Error processing file {file}: {str(e)}", exc_info=True)
                     
