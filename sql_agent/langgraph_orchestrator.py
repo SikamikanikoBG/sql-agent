@@ -596,6 +596,9 @@ Validation Results:"""
                     
                     for i in range(1, len(statements), 2):
                         if i+1 < len(statements):
+                            # Extract the main SQL operation type first
+                            operation_type = statements[i].strip().upper()
+                            
                             # Combine keyword with its statement
                             full_stmt = statements[i] + statements[i+1]
                             
@@ -603,10 +606,7 @@ Validation Results:"""
                             if len(full_stmt.split()) > 10:  # Meaningful statements
                                 # Clean and normalize the statement
                                 cleaned_stmt = ' '.join(full_stmt.split())
-                            
-                                # Extract the main SQL operation type
-                                operation_type = statements[i].strip().upper()
-                            
+                                
                                 # Store both the full statement and key parts
                                 texts.append(cleaned_stmt)
                                 metadatas.append({
