@@ -298,34 +298,8 @@ class MetadataExtractor:
                             "target_table": target_table.strip(),
                             "target_columns": [col.strip() for col in target_cols.split(',')]
                         })
-                        if match:
-                            name, definition = match.groups()
-                            clean_name = name.strip('[] \n\t')
-                            logger.info(f"Processing table: {clean_name}")
-                            
-                            columns = self._extract_table_columns(definition)
-                            logger.info(f"Extracted {len(columns)} columns from {clean_name}")
-                            
-                            relationships = self._extract_foreign_keys(definition)
-                            logger.info(f"Extracted {len(relationships)} relationships from {clean_name}")
-                            
-                            database_name = self._extract_database_name(content, clean_name)
-                            
-                            sql_object = SQLObject(
-                                type="table",
-                                name=clean_name,
-                                definition=definition.strip(),
-                                source_file=file_path,
-                                database=database_name,
-                                schema=columns
-                            )
-                            
-                            file_metadata["objects"].append(vars(sql_object))
-                            file_metadata["relationships"].extend(relationships)
-                            file_metadata["schemas"][clean_name] = columns
-                            
-                    except Exception as e:
-                        logger.error(f"Error processing table statement: {str(e)}", exc_info=True)
+                except Exception as e:
+                    logger.error(f"Error processing table statement: {str(e)}", exc_info=True)
             
             # Extract views
             for statement in statements:
