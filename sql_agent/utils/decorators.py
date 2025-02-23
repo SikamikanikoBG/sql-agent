@@ -15,7 +15,9 @@ def prevent_rerun(timeout: int = 60):
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             current_time = time.time()
-            func_key = (func.__name__, args, frozenset(kwargs.items()))
+            # Convert args to a hashable format
+            hashable_args = tuple(tuple(arg) if isinstance(arg, list) else arg for arg in args)
+            func_key = (func.__name__, hashable_args, frozenset(kwargs.items()))
             
             if func_key in last_run:
                 if current_time - last_run[func_key] < timeout:
