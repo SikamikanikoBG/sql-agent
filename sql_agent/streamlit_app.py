@@ -149,17 +149,31 @@ class SQLAgentApp:
         st.markdown("### 🤖 Processing Steps")
         for step_name, step_data in results.agent_interactions.items():
             with st.expander(f"Step: {step_name}", expanded=False):
+                st.markdown("**System Prompt:**")
                 st.code(step_data["system_prompt"], language="text")
+                st.markdown("**User Input:**")
                 st.code(step_data["user_prompt"], language="text")
+                st.markdown("**Agent Response:**")
                 st.code(step_data["result"], language="text")
+                st.markdown(f"*Tokens used: {step_data['tokens_used']}*")
         
-        # Display similarity search results
-        if results.similarity_search:
-            st.markdown("### 🔍 Similar SQL Patterns")
-            with st.expander("View Similar Patterns", expanded=False):
-                for score, content in results.similarity_search:
-                    st.markdown(f"**Similarity Score:** {score:.3f}")
-                    st.code(content, language="sql")
+        # Display relevant context and similarity search results
+        if results.similarity_search or results.relevant_files:
+            st.markdown("### 🔍 Context and Similar Patterns")
+            
+            # Display relevant files
+            if results.relevant_files:
+                with st.expander("📁 Relevant Context Files", expanded=True):
+                    st.markdown("Files used for context:")
+                    for file in results.relevant_files:
+                        st.markdown(f"- `{file}`")
+            
+            # Display similar patterns
+            if results.similarity_search:
+                with st.expander("View Similar Patterns", expanded=False):
+                    for score, content in results.similarity_search:
+                        st.markdown(f"**Similarity Score:** {score:.3f}")
+                        st.code(content, language="sql")
         
         # Display generated query
         st.markdown("### 📝 Generated SQL Query")

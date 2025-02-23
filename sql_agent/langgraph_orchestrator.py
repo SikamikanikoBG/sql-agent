@@ -21,6 +21,7 @@ class QueryResult:
     agent_interactions: Dict[str, Any]
     similarity_search: List[Tuple[float, str]]
     validation_result: Dict[str, Any]
+    relevant_files: List[str]
     error: Optional[str] = None
 
 @dataclass
@@ -182,50 +183,59 @@ Validation Results:"""
             similar_examples = await self._find_similar_examples(query)
             
             # Parse intent
+            formatted_metadata = self._format_metadata(metadata)
+            formatted_examples = self._format_examples(similar_examples)
             intent_result = await self.intent_chain.ainvoke({
                 "query": query,
-                "metadata": self._format_metadata(metadata),
-                "similar_examples": self._format_examples(similar_examples)
+                "metadata": formatted_metadata,
+                "similar_examples": formatted_examples
             })
+            self._update_usage_stats(intent_result)
             
             # Generate query
             query_result = await self.query_chain.ainvoke({
                 "intent": intent_result.content,
-                "metadata": self._format_metadata(metadata),
-                "similar_examples": self._format_examples(similar_examples)
+                "metadata": formatted_metadata,
+                "similar_examples": formatted_examples
             })
+            self._update_usage_stats(query_result)
             
             # Validate generated query
             validation_result = await self.validation_chain.ainvoke({
                 "query": query_result.content,
-                "metadata": self._format_metadata(metadata)
+                "metadata": formatted_metadata
             })
-            
-            # Update usage stats
-            self._update_usage_stats()
+            self._update_usage_stats(validation_result)
+
+            # Track relevant context
+            relevant_files = [meta["source"] for score, meta in similar_examples if score > self.similarity_threshold]
             
             # Prepare result
             result = QueryResult(
                 generated_query=query_result.content,
                 agent_interactions={
                     "parse_intent": {
-                        "system_prompt": "Intent Analysis",
+                        "system_prompt": intent_prompt.template,
                         "user_prompt": query,
-                        "result": intent_result.content
+                        "result": intent_result.content,
+                        "tokens_used": intent_result.usage.total_tokens if hasattr(intent_result, 'usage') else 0
                     },
                     "generate_query": {
-                        "system_prompt": "Query Generation",
+                        "system_prompt": query_prompt.template,
                         "user_prompt": intent_result.content,
-                        "result": query_result.content
+                        "result": query_result.content,
+                        "tokens_used": query_result.usage.total_tokens if hasattr(query_result, 'usage') else 0
                     },
                     "validate_query": {
-                        "system_prompt": "Query Validation",
+                        "system_prompt": validation_prompt.template,
                         "user_prompt": query_result.content,
-                        "result": validation_result.content
+                        "result": validation_result.content,
+                        "tokens_used": validation_result.usage.total_tokens if hasattr(validation_result, 'usage') else 0
                     }
                 },
                 similarity_search=similar_examples,
-                validation_result=self._parse_validation_result(validation_result.content)
+                validation_result=self._parse_validation_result(validation_result.content),
+                relevant_files=relevant_files
             )
             
             return result, self.usage_stats
@@ -345,26 +355,29 @@ Validation Results:"""
             }
             return result
     
-    def _update_usage_stats(self) -> None:
+    def _update_usage_stats(self, response) -> None:
         """Update usage statistics from LLM interactions."""
-        # Get usage from ChatOpenAI if available
-        if hasattr(self.llm, "last_token_usage"):
-            usage = self.llm.last_token_usage
-            self.usage_stats.prompt_tokens += usage.get("prompt_tokens", 0)
-            self.usage_stats.completion_tokens += usage.get("completion_tokens", 0)
-            self.usage_stats.total_tokens = (
-                self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
-            )
-            
-            # Calculate approximate cost
-            # Adjust rates based on your model
-            prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
-            completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
-            
-            self.usage_stats.cost = (
-                self.usage_stats.prompt_tokens * prompt_rate / 1000 +
-                self.usage_stats.completion_tokens * completion_rate / 1000
-            )
+        try:
+            # Extract usage from the response
+            usage = response.usage
+            if usage:
+                self.usage_stats.prompt_tokens += usage.prompt_tokens
+                self.usage_stats.completion_tokens += usage.completion_tokens
+                self.usage_stats.total_tokens = (
+                    self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
+                )
+                
+                # Calculate approximate cost
+                # Adjust rates based on your model
+                prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
+                completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
+                
+                self.usage_stats.cost = (
+                    self.usage_stats.prompt_tokens * prompt_rate / 1000 +
+                    self.usage_stats.completion_tokens * completion_rate / 1000
+                )
+        except Exception as e:
+            logger.error(f"Error updating usage stats: {str(e)}")
     
     async def initialize_vector_store(self, sql_files: List[str]) -> None:
         """Initialize the vector store with SQL examples.
