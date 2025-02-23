@@ -271,6 +271,7 @@ Validation Results:"""
                 agent_interactions={},
                 similarity_search=[],
                 validation_result={},
+                relevant_files=[],
                 error=str(e)
             ), self.usage_stats
             
