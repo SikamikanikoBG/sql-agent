@@ -611,8 +611,8 @@ Validation Results:"""
                             
                             # Only store non-trivial SQL statements
                             if len(full_stmt.split()) > 10:  # Meaningful statements
-                            # Clean and normalize the statement
-                            cleaned_stmt = ' '.join(full_stmt.split())
+                                # Clean and normalize the statement
+                                cleaned_stmt = ' '.join(full_stmt.split())
                             
                             # Extract the main SQL operation type
                             operation_type = statements[i].strip().upper()
