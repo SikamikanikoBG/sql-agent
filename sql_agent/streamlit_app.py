@@ -204,9 +204,10 @@ class SQLAgentApp:
                                 st.markdown(f"**{obj['name']}**")
                                 if "definition" in obj:
                                     st.code(obj["definition"], language="sql")
-                                if "schema" in obj:
-                                    for col in obj["schema"]:
-                                        st.markdown(f"- {col['name']}: {col['type']}")
+                                if "schema" in obj and obj["schema"]:
+                                    if isinstance(obj["schema"], list):
+                                        for col in obj["schema"]:
+                                            st.markdown(f"- {col['name']}: {col['type']}")
         
         # Query History Tab
         with tabs[2]:
