@@ -166,18 +166,21 @@ class SQLAgentApp:
         with tabs[0]:
             st.markdown("### 🔍 Natural Language to SQL")
             
-            # Query input
-            query = st.text_area(
-                "Describe your query",
-                placeholder="Example: Show me all orders from last month with total amount greater than $1000",
-                height=100,
-                help="Be as specific as possible about what data you need"
-            )
+            # Query input container
+            query_container = st.container()
+            with query_container:
+                query = st.text_area(
+                    "Describe your query",
+                    placeholder="Example: Show me all orders from last month with total amount greater than $1000",
+                    height=100,
+                    help="Be as specific as possible about what data you need",
+                    key="query_input"
+                )
             
             # Action buttons
             button_container = st.container()
             left, right = button_container.columns([1, 5])
-            if left.button("🚀 Generate", type="primary", disabled=not query):
+            if left.button("🚀 Generate", type="primary", disabled=not query, key="generate_button"):
                 if not query.strip():
                     st.warning("⚠️ Please enter a query description")
                     return
