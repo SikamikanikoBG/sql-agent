@@ -89,7 +89,7 @@ class SQLAgentApp:
             
         return True
         
-    def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
+    async def load_metadata(self, data_folder: str = "./sql_agent/data") -> Optional[Dict]:
         try:
             data_path = Path(data_folder)
             if not data_path.exists():
@@ -102,9 +102,13 @@ class SQLAgentApp:
                 return None
                 
             with st.spinner("Loading database schema..."):
+                # Extract metadata
                 metadata = self.metadata_extractor.extract_metadata_from_sql_files(
                     [str(f) for f in sql_files]
                 )
+            
+                # Initialize vector store
+                await self.agent.initialize_vector_store([str(f) for f in sql_files])
                 
                 if not metadata:
                     st.warning("⚠️ No metadata extracted")
@@ -291,11 +295,7 @@ class SQLAgentApp:
                 sql_files = list(Path(data_folder).glob("*.sql"))
                 
                 results, usage_stats = asyncio.run(
-                    self.agent.process_query(
-                        query=query,
-                        metadata=metadata,
-                        sql_files=[str(f) for f in sql_files]
-                    )
+                    self.agent.process_query(query, metadata)
                 )
                 
             if results.error:
@@ -358,7 +358,7 @@ class SQLAgentApp:
             logger.error(f"Error processing query: {str(e)}")
             st.error(f"❌ Error: {str(e)}")
 
-def main():
+async def main():
     # Page config
     st.set_page_config(
         page_title="SQL Agent",
@@ -400,7 +400,7 @@ def main():
         return
         
     # Load metadata
-    metadata = app.load_metadata()
+    metadata = await app.load_metadata()
     if not metadata:
         return
         
@@ -408,4 +408,4 @@ def main():
     app.render_main_interface()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
