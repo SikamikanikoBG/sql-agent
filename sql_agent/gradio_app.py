@@ -21,25 +21,25 @@ class SQLAgentGradioApp:
         # Initialize agent and vector store once at startup
         self.agent = SQLAgentOrchestrator()
         self._initialize_data()
-        # Initialize column cache
-        self.column_cache = self._build_column_cache()
 
     def _get_available_columns(self) -> List[str]:
-        """Get list of all available columns in format 'table.column'"""
-        columns = []
+        """Get list of all available columns from SQL examples"""
+        columns = set()
         if not self.metadata:
-            return columns
+            return []
 
-        # Extract columns from permanent tables
-        for table in self.metadata.get("permanent_tables", []):
-            if isinstance(table, dict):
-                table_name = table.get("name", "unknown")
-                if table_name in self.metadata.get("schemas", {}):
-                    for column in self.metadata["schemas"][table_name]:
-                        col_name = f"{table_name}.{column['name']}"
-                        columns.append(col_name)
+        # Extract columns from SQL examples in vector store
+        if self.agent.vector_store:
+            for doc in self.agent.vector_store.docstore._dict.values():
+                if hasattr(doc, 'metadata') and doc.metadata.get('type') == 'column_list':
+                    # Split column list and clean up each column name
+                    col_list = doc.page_content.split(',')
+                    for col in col_list:
+                        clean_col = col.strip('[] \n\t')
+                        if clean_col:
+                            columns.add(clean_col)
 
-        return sorted(columns)
+        return sorted(list(columns))
         
     def _initialize_data(self, data_folder: str = "./sql_agent/data") -> None:
         """Initialize data and vector store once at startup"""
