@@ -594,28 +594,35 @@ Validation Results:"""
                     # First split by major SQL statements
                     statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
                     
+                    # Initialize cleaned_stmt at the start
+                    cleaned_stmt = ""
+                    
                     for i in range(1, len(statements), 2):
-                        if i+1 < len(statements):
-                            # Extract the main SQL operation type first
-                            operation_type = statements[i].strip().upper()
-                            
-                            # Combine keyword with its statement
-                            full_stmt = statements[i] + statements[i+1]
-                            
-                            # Only store non-trivial SQL statements
-                            if len(full_stmt.split()) > 10:  # Meaningful statements
-                                # Clean and normalize the statement
-                                cleaned_stmt = ' '.join(full_stmt.split())
+                        try:
+                            if i+1 < len(statements):
+                                # Extract the main SQL operation type first
+                                operation_type = statements[i].strip().upper()
                                 
-                                # Store both the full statement and key parts
-                                texts.append(cleaned_stmt)
-                                metadatas.append({
-                                    "source": file_path,
-                                    "content": cleaned_stmt,
-                                    "type": "sql_statement",
-                                    "operation": operation_type,
-                                    "size": len(cleaned_stmt)
-                                })
+                                # Combine keyword with its statement
+                                full_stmt = operation_type + " " + statements[i+1]
+                                
+                                # Only store non-trivial SQL statements
+                                if len(full_stmt.split()) > 10:  # Meaningful statements
+                                    # Clean and normalize the statement
+                                    cleaned_stmt = ' '.join(full_stmt.split())
+                                    
+                                    # Store both the full statement and key parts
+                                    texts.append(cleaned_stmt)
+                                    metadatas.append({
+                                        "source": file_path,
+                                        "content": cleaned_stmt,
+                                        "type": "sql_statement",
+                                        "operation": operation_type,
+                                        "size": len(cleaned_stmt)
+                                    })
+                        except Exception as e:
+                            logger.error(f"Error processing statement in {file_path}: {str(e)}")
+                            continue
                                 
                                 # For SELECT statements, also store the column list separately
                                 if operation_type == "SELECT":
