@@ -305,7 +305,8 @@ Validation Results (include all issues found):"""
                 }
                 validation_result = self.validation_chain.invoke({
                     "query": query_result.content,
-                    "metadata": self._format_metadata(minimal_metadata)
+                    "metadata": self._format_metadata(minimal_metadata),
+                    "similar_examples": context
                 })
                 logger.info("Query validation completed")
                 self._update_usage_stats(validation_result)
