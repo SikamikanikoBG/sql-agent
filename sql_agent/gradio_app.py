@@ -48,7 +48,7 @@ class SQLAgentGradioApp:
             logger.error(f"Error initializing data: {str(e)}")
             return f"❌ Error initializing data: {str(e)}"
 
-    def process_query(self, api_key: str, query: str, model: str, temperature: float) -> Tuple[str, str, str, str, str]:
+    def process_query(self, api_key: str, query: str, model: str, temperature: float, similarity_threshold: float) -> Tuple[str, str, str, str, str]:
         """Process a query and return results"""
         if not api_key.strip():
             return "⚠️ API Key Required", "", "", "", ""
@@ -63,6 +63,7 @@ class SQLAgentGradioApp:
             # Update agent settings
             self.agent.model_name = model
             self.agent.temperature = temperature
+            self.agent.similarity_threshold = similarity_threshold
             
             # Process query
             results, usage_stats = self.agent.process_query(query, self.metadata)
@@ -194,6 +195,13 @@ def create_gradio_interface():
                     step=0.1,
                     label="Temperature"
                 )
+                similarity_threshold = gr.Slider(
+                    minimum=0.1,
+                    maximum=1.0,
+                    value=0.3,
+                    step=0.05,
+                    label="Similarity Threshold"
+                )
             
             with gr.Column(scale=2):
                 # Query input
@@ -224,7 +232,7 @@ def create_gradio_interface():
         # Set up event handler
         generate_btn.click(
             fn=app.process_query,
-            inputs=[api_key, query, model, temperature],
+            inputs=[api_key, query, model, temperature, similarity_threshold],
             outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
         )
         
