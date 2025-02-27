@@ -21,6 +21,63 @@ class SQLAgentGradioApp:
         # Initialize agent and vector store once at startup
         self.agent = SQLAgentOrchestrator()
         self._initialize_data()
+        # Initialize column cache
+        self.column_cache = self._build_column_cache()
+
+    def _build_column_cache(self) -> Dict[str, List[Tuple[str, str, str]]]:
+        """Build a cache of all columns from metadata for quick lookup"""
+        column_cache = {}
+        if not self.metadata:
+            return column_cache
+
+        # Extract columns from permanent tables
+        for table in self.metadata.get("permanent_tables", []):
+            if isinstance(table, dict):
+                table_name = table.get("name", "unknown")
+                if table_name in self.metadata.get("schemas", {}):
+                    for column in self.metadata["schemas"][table_name]:
+                        col_name = column["name"].lower()
+                        if col_name not in column_cache:
+                            column_cache[col_name] = []
+                        column_cache[col_name].append((
+                            column["name"],
+                            table_name,
+                            column["type"]
+                        ))
+
+        return column_cache
+
+    def _get_column_suggestions(self, query: str) -> Optional[List[List[str]]]:
+        """Get column suggestions based on the current query text"""
+        if not query or '/' not in query:
+            return None
+
+        # Find the last slash and get the search term
+        last_slash_idx = query.rindex('/')
+        search_term = query[last_slash_idx + 1:].lower()
+
+        # Filter columns based on search term
+        suggestions = []
+        for col_name, columns in self.column_cache.items():
+            if col_name.startswith(search_term):
+                for col in columns:
+                    suggestions.append(list(col))
+
+        # Sort suggestions by column name
+        suggestions.sort(key=lambda x: x[0])
+        
+        return suggestions if suggestions else None
+
+    def _insert_column(self, query: str, selected_row: List[str]) -> str:
+        """Insert the selected column into the query text"""
+        if not query or not selected_row:
+            return query
+
+        # Find the last slash
+        last_slash_idx = query.rindex('/')
+        
+        # Replace the partial term with the selected column
+        return query[:last_slash_idx] + '/' + selected_row[0] + query[query.find(' ', last_slash_idx) if ' ' in query[last_slash_idx:] else len(query):]
         
     def _initialize_data(self, data_folder: str = "./sql_agent/data") -> None:
         """Initialize data and vector store once at startup"""
@@ -204,14 +261,65 @@ def create_gradio_interface():
                 )
             
             with gr.Column(scale=2):
-                # Query input
+                # Query input with column suggestions
                 gr.Markdown("### 🔍 Query Input")
-                query = gr.Textbox(
-                    label="Describe your query",
-                    placeholder="Example: Show me all orders from last month with total amount greater than $1000",
-                    lines=4
-                )
+                with gr.Row():
+                    query = gr.Textbox(
+                        label="Describe your query",
+                        placeholder="Example: Show customer profile based on /age /salary /education",
+                        lines=4,
+                        every_keystroke=True
+                    )
+                    column_suggestions = gr.Dataframe(
+                        headers=["Column Name", "Table", "Type"],
+                        visible=False,
+                        interactive=True
+                    )
                 generate_btn = gr.Button("🚀 Generate SQL", variant="primary")
+
+                # Add JavaScript for column suggestions
+                query.change(
+                    fn=self._get_column_suggestions,
+                    inputs=[query],
+                    outputs=[column_suggestions],
+                    _js="""
+                    function(text) {
+                        const cursorPos = document.querySelector("textarea").selectionStart;
+                        const textBeforeCursor = text.substring(0, cursorPos);
+                        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+                        
+                        if (lastSlashIndex !== -1) {
+                            const searchTerm = textBeforeCursor.substring(lastSlashIndex + 1).toLowerCase();
+                            return [text, searchTerm];
+                        }
+                        return [text, ""];
+                    }
+                    """
+                )
+
+                # Add click handler for column suggestions
+                column_suggestions.select(
+                    fn=self._insert_column,
+                    inputs=[query, column_suggestions],
+                    outputs=[query],
+                    _js="""
+                    function(queryText, selectedColumn) {
+                        const textarea = document.querySelector("textarea");
+                        const cursorPos = textarea.selectionStart;
+                        const textBeforeCursor = queryText.substring(0, cursorPos);
+                        const textAfterCursor = queryText.substring(cursorPos);
+                        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+                        
+                        if (lastSlashIndex !== -1) {
+                            const newText = textBeforeCursor.substring(0, lastSlashIndex) + 
+                                          '/' + selectedColumn[0] + 
+                                          textAfterCursor;
+                            return newText;
+                        }
+                        return queryText;
+                    }
+                    """
+                )
         
         with gr.Tabs() as tabs:
             with gr.TabItem("📝 Generated SQL"):
