@@ -399,8 +399,8 @@ Validation Results:"""
             similar_examples = []
             for similarity, doc in normalized_results:
                 logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
-                # Include more examples that meet minimum threshold
-                if similarity >= 0.1:  # Very low minimum threshold to get more results
+                # Include examples that meet the threshold
+                if similarity >= self.similarity_threshold:
                     try:
                         example = {
                             'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
