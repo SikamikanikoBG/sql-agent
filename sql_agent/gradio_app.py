@@ -2,7 +2,7 @@ import os
 import logging
 import gradio as gr
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 from sql_agent.metadata_extractor import MetadataExtractor
@@ -279,7 +279,7 @@ def create_gradio_interface():
 
                 # Add JavaScript for column suggestions
                 query.change(
-                    fn=self._get_column_suggestions,
+                    fn=app._get_column_suggestions,
                     inputs=[query],
                     outputs=[column_suggestions],
                     _js="""
@@ -299,7 +299,7 @@ def create_gradio_interface():
 
                 # Add click handler for column suggestions
                 column_suggestions.select(
-                    fn=self._insert_column,
+                    fn=app._insert_column,
                     inputs=[query, column_suggestions],
                     outputs=[query],
                     _js="""
