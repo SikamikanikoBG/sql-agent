@@ -635,7 +635,10 @@ Validation Results:"""
                                             })
                                     
                                     logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
-                    
+                        except Exception as e:
+                            logger.error(f"Error processing statement in {file_path}: {str(e)}")
+                            continue
+                            
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
         
