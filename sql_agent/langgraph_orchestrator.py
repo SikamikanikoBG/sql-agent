@@ -620,9 +620,7 @@ Validation Results:"""
                                         "operation": operation_type,
                                         "size": len(cleaned_stmt)
                                     })
-                        except Exception as e:
-                            logger.error(f"Error processing statement in {file_path}: {str(e)}")
-                            continue
+                                    
                                     # For SELECT statements, also store the column list separately
                                     if operation_type == "SELECT":
                                         columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
