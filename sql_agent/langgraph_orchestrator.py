@@ -100,18 +100,25 @@ class SQLAgentOrchestrator:
         # Intent parsing chain
         self.intent_prompt = PromptTemplate(
             input_variables=["query", "metadata", "similar_examples"],
-            template="""Analyze the user's query intent using the context below:
+            template="""Analyze the user's query intent using ONLY the tables and columns found in the similar examples below:
 
 {similar_examples}
 
 User Query:
 {query}
 
-Identify:
-1. Required tables and their relationships
-2. Desired columns/calculations
-3. Any filters or conditions
-4. Sorting or grouping requirements
+Important Rules:
+1. You MUST ONLY use tables and columns that appear in the example queries above
+2. Do not invent or assume any tables or columns that are not shown in the examples
+3. If required tables/columns are not found in examples, state this explicitly
+
+Please identify:
+1. Required tables (ONLY from examples above) and their relationships
+2. Available columns from these tables that match the requirements
+3. Filters or conditions using only existing columns
+4. Sorting or grouping requirements using only existing columns
+
+If any part of the query cannot be satisfied with the available tables/columns, explain what is missing.
 
 Intent Analysis:"""
         )
@@ -127,59 +134,69 @@ Intent Analysis:"""
 Analyzed Intent:
 {intent}
 
-Consider MS SQL best practices:
-1. Use appropriate JOIN types with proper NOLOCK hints where needed
-2. Include schema names and use square brackets for identifiers
-3. Add proper WHERE clauses with parameter sniffing consideration
-4. Include GROUP BY/ORDER BY with appropriate indexing hints
-5. Use appropriate MS SQL features:
-   - CTEs for complex queries
-   - OFFSET/FETCH for paging
-   - OUTPUT clause for DML operations
-   - Appropriate data type functions
-   - Proper NULL handling with ISNULL/COALESCE
-   - Table variables vs temp tables based on size
-   - Proper transaction isolation levels
+CRITICAL RULES:
+1. You MUST ONLY use tables and columns that appear in the example queries above
+2. Copy exact table and column names from the examples - do not modify or invent names
+3. Use the same schema prefixes (like [dbo], etc.) as shown in the examples
+4. Follow the same NOLOCK hints and JOIN patterns shown in the examples
+5. If a required table or column is not in the examples, DO NOT generate a query
 
-Important Notes for Temporary Tables:
-1. If you need data from a temporary table (#temp), look at its source tables in the metadata
-2. You can either:
-   a) Use the source tables directly with appropriate JOINs and conditions
-   b) Recreate the temporary table using its definition from metadata
-3. Choose the approach that best matches the original query's intent and performance needs
+MS SQL Best Practices:
+1. Use the exact JOIN types and NOLOCK hints as shown in examples
+2. Copy schema names and square bracket usage exactly as shown
+3. Follow the same WHERE clause patterns from examples
+4. Use GROUP BY/ORDER BY exactly as demonstrated
+5. Only use MS SQL features shown in the examples:
+   - Only use CTEs if examples show them
+   - Copy ISNULL/COALESCE usage patterns
+   - Follow the same date handling patterns
+   - Use the same transaction patterns
 
-Generated SQL Query:"""
+Validation Steps:
+1. Verify every table exists in examples
+2. Verify every column exists in examples
+3. Check all JOIN conditions match example patterns
+4. Ensure all functions used appear in examples
+
+Generated SQL Query (ONLY if all tables/columns are available):"""
         )
         self.query_chain = self.query_prompt | self.llm
         
         # Query validation chain for MS SQL
         self.validation_prompt = PromptTemplate(
-            input_variables=["query", "metadata"],
-            template="""Validate the following MS SQL query against the database metadata:
+            input_variables=["query", "metadata", "similar_examples"],
+            template="""Strictly validate the following MS SQL query against the similar examples:
 
-Database Metadata:
-{metadata}
+Similar Examples (ONLY valid source of tables/columns):
+{similar_examples}
 
-SQL Query:
+SQL Query to Validate:
 {query}
 
-Check for:
-1. Table existence and relationships (including schema names)
-2. Column validity and data types
-3. MS SQL syntax correctness
-4. Performance considerations:
-   - Proper indexing hints
-   - JOIN optimization
-   - NOLOCK usage where appropriate
-   - Execution plan hints
-5. SQL injection risks
-6. MS SQL specific features:
-   - Proper use of square brackets for identifiers
-   - Schema qualification
-   - Appropriate collation settings
-   - Table hints and locking hints
+Validation Steps:
+1. Table Validation:
+   - Check each table exists in examples with exact same name and schema
+   - Verify table usage matches example patterns
+   - Flag any tables not found in examples
 
-Validation Results:"""
+2. Column Validation:
+   - Verify each column exists in example queries
+   - Check column names match exactly (including case and brackets)
+   - Flag any columns not shown in examples
+
+3. Join Validation:
+   - Confirm JOIN syntax matches examples
+   - Verify NOLOCK hints match example usage
+   - Check JOIN conditions use valid columns
+
+4. Pattern Matching:
+   - Verify all functions used appear in examples
+   - Check WHERE clause patterns match examples
+   - Validate GROUP BY/ORDER BY follows examples
+
+CRITICAL: The query is only valid if it uses EXCLUSIVELY tables and columns from the examples.
+
+Validation Results (include all issues found):"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
