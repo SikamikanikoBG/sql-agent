@@ -52,7 +52,7 @@ class SQLAgentGradioApp:
             
             sql_files = list(data_path.glob("*.sql"))
             if not sql_files:
-                logger.warning(f"No SQL files found in {data_folder}")
+                logger.warning(f"No SQL files found in {data_path}")
                 return "⚠️ No SQL files found in data folder. Please add .sql files to continue."
                 
             # Extract metadata and initialize vector store once
