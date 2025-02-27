@@ -26,12 +26,13 @@ class SQLAgentGradioApp:
         """Initialize data and vector store once at startup"""
         try:
             data_path = Path(data_folder)
-            if not data_path.exists():
-                return "❌ Data folder not found"
-                
+            # Create data folder if it doesn't exist
+            data_path.mkdir(parents=True, exist_ok=True)
+            
             sql_files = list(data_path.glob("*.sql"))
             if not sql_files:
-                return "❌ No SQL files found"
+                logger.warning(f"No SQL files found in {data_folder}")
+                return "⚠️ No SQL files found in data folder. Please add .sql files to continue."
                 
             # Extract metadata and initialize vector store once
             self.metadata = self.metadata_extractor.extract_metadata_from_sql_files(
