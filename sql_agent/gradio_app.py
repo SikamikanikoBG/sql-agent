@@ -196,7 +196,7 @@ def create_gradio_interface():
                     label="Temperature"
                 )
                 similarity_threshold = gr.Slider(
-                    minimum=0.1,
+                    minimum=0.01,
                     maximum=1.0,
                     value=0.3,
                     step=0.05,
