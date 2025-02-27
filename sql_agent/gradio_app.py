@@ -41,10 +41,12 @@ class SQLAgentGradioApp:
 
         return sorted(list(columns))
         
-    def _initialize_data(self, data_folder: str = "./sql_agent/data") -> None:
+    def _initialize_data(self) -> None:
         """Initialize data and vector store once at startup"""
         try:
-            data_path = Path(data_folder)
+            # Get the path relative to the module
+            module_dir = Path(__file__).parent
+            data_path = module_dir / "data"
             # Create data folder if it doesn't exist
             data_path.mkdir(parents=True, exist_ok=True)
             
