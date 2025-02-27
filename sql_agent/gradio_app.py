@@ -268,7 +268,7 @@ def create_gradio_interface():
                         label="Describe your query",
                         placeholder="Example: Show customer profile based on /age /salary /education",
                         lines=4,
-                        every_keystroke=True
+                        interactive=True
                     )
                     column_suggestions = gr.Dataframe(
                         headers=["Column Name", "Table", "Type"],
@@ -277,24 +277,11 @@ def create_gradio_interface():
                     )
                 generate_btn = gr.Button("🚀 Generate SQL", variant="primary")
 
-                # Add JavaScript for column suggestions
+                # Add event handler for column suggestions
                 query.change(
                     fn=app._get_column_suggestions,
                     inputs=[query],
-                    outputs=[column_suggestions],
-                    _js="""
-                    function(text) {
-                        const cursorPos = document.querySelector("textarea").selectionStart;
-                        const textBeforeCursor = text.substring(0, cursorPos);
-                        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
-                        
-                        if (lastSlashIndex !== -1) {
-                            const searchTerm = textBeforeCursor.substring(lastSlashIndex + 1).toLowerCase();
-                            return [text, searchTerm];
-                        }
-                        return [text, ""];
-                    }
-                    """
+                    outputs=[column_suggestions]
                 )
 
                 # Add click handler for column suggestions
