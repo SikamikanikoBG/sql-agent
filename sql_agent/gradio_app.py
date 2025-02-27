@@ -277,35 +277,19 @@ def create_gradio_interface():
                     )
                 generate_btn = gr.Button("🚀 Generate SQL", variant="primary")
 
-                # Add event handler for column suggestions
+                # Add event handlers for column suggestions
                 query.change(
                     fn=app._get_column_suggestions,
                     inputs=[query],
-                    outputs=[column_suggestions]
+                    outputs=[column_suggestions],
+                    show_progress=False
                 )
 
-                # Add click handler for column suggestions
                 column_suggestions.select(
                     fn=app._insert_column,
                     inputs=[query, column_suggestions],
                     outputs=[query],
-                    _js="""
-                    function(queryText, selectedColumn) {
-                        const textarea = document.querySelector("textarea");
-                        const cursorPos = textarea.selectionStart;
-                        const textBeforeCursor = queryText.substring(0, cursorPos);
-                        const textAfterCursor = queryText.substring(cursorPos);
-                        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
-                        
-                        if (lastSlashIndex !== -1) {
-                            const newText = textBeforeCursor.substring(0, lastSlashIndex) + 
-                                          '/' + selectedColumn[0] + 
-                                          textAfterCursor;
-                            return newText;
-                        }
-                        return queryText;
-                    }
-                    """
+                    show_progress=False
                 )
         
         with gr.Tabs() as tabs:
