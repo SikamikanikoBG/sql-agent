@@ -46,7 +46,7 @@ htmlcov/
 .streamlit/
 
 # Project specific
-sql_agent/data/*
+#sql_agent/data/*
 #!sql_agent/data/q1.sql
 #!sql_agent/data/schema.json
 

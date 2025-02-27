@@ -1,3 +1,0 @@
--- Example SQL file
--- Add your SQL schema and data files to this directory
--- The agent will analyze them to understand your database structure
