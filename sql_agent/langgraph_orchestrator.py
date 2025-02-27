@@ -197,6 +197,34 @@ Validation Steps:
 CRITICAL: The query is only valid if it uses EXCLUSIVELY tables and columns from the examples.
 
 Validation Results (include all issues found):"""
+
+SQL Query to Validate:
+{query}
+
+Validation Steps:
+1. Table Validation:
+   - Check each table exists in examples with exact same name and schema
+   - Verify table usage matches example patterns
+   - Flag any tables not found in examples
+
+2. Column Validation:
+   - Verify each column exists in example queries
+   - Check column names match exactly (including case and brackets)
+   - Flag any columns not shown in examples
+
+3. Join Validation:
+   - Confirm JOIN syntax matches examples
+   - Verify NOLOCK hints match example usage
+   - Check JOIN conditions use valid columns
+
+4. Pattern Matching:
+   - Verify all functions used appear in examples
+   - Check WHERE clause patterns match examples
+   - Validate GROUP BY/ORDER BY follows examples
+
+CRITICAL: The query is only valid if it uses EXCLUSIVELY tables and columns from the examples.
+
+Validation Results (include all issues found):"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
