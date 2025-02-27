@@ -24,11 +24,11 @@ class SQLAgentGradioApp:
         # Initialize column cache
         self.column_cache = self._build_column_cache()
 
-    def _build_column_cache(self) -> Dict[str, List[Tuple[str, str, str]]]:
-        """Build a cache of all columns from metadata for quick lookup"""
-        column_cache = {}
+    def _get_available_columns(self) -> List[str]:
+        """Get list of all available columns in format 'table.column'"""
+        columns = []
         if not self.metadata:
-            return column_cache
+            return columns
 
         # Extract columns from permanent tables
         for table in self.metadata.get("permanent_tables", []):
@@ -36,48 +36,10 @@ class SQLAgentGradioApp:
                 table_name = table.get("name", "unknown")
                 if table_name in self.metadata.get("schemas", {}):
                     for column in self.metadata["schemas"][table_name]:
-                        col_name = column["name"].lower()
-                        if col_name not in column_cache:
-                            column_cache[col_name] = []
-                        column_cache[col_name].append((
-                            column["name"],
-                            table_name,
-                            column["type"]
-                        ))
+                        col_name = f"{table_name}.{column['name']}"
+                        columns.append(col_name)
 
-        return column_cache
-
-    def _get_column_suggestions(self, query: str) -> Optional[List[List[str]]]:
-        """Get column suggestions based on the current query text"""
-        if not query or '/' not in query:
-            return None
-
-        # Find the last slash and get the search term
-        last_slash_idx = query.rindex('/')
-        search_term = query[last_slash_idx + 1:].lower()
-
-        # Filter columns based on search term
-        suggestions = []
-        for col_name, columns in self.column_cache.items():
-            if col_name.startswith(search_term):
-                for col in columns:
-                    suggestions.append(list(col))
-
-        # Sort suggestions by column name
-        suggestions.sort(key=lambda x: x[0])
-        
-        return suggestions if suggestions else None
-
-    def _insert_column(self, query: str, selected_row: List[str]) -> str:
-        """Insert the selected column into the query text"""
-        if not query or not selected_row:
-            return query
-
-        # Find the last slash
-        last_slash_idx = query.rindex('/')
-        
-        # Replace the partial term with the selected column
-        return query[:last_slash_idx] + '/' + selected_row[0] + query[query.find(' ', last_slash_idx) if ' ' in query[last_slash_idx:] else len(query):]
+        return sorted(columns)
         
     def _initialize_data(self, data_folder: str = "./sql_agent/data") -> None:
         """Initialize data and vector store once at startup"""
@@ -105,7 +67,7 @@ class SQLAgentGradioApp:
             logger.error(f"Error initializing data: {str(e)}")
             return f"❌ Error initializing data: {str(e)}"
 
-    def process_query(self, api_key: str, query: str, model: str, temperature: float, similarity_threshold: float) -> Tuple[str, str, str, str, str]:
+    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float) -> Tuple[str, str, str, str, str]:
         """Process a query and return results"""
         if not api_key.strip():
             return "⚠️ API Key Required", "", "", "", ""
@@ -261,36 +223,20 @@ def create_gradio_interface():
                 )
             
             with gr.Column(scale=2):
-                # Query input with column suggestions
+                # Query input and column selection
                 gr.Markdown("### 🔍 Query Input")
-                with gr.Row():
-                    query = gr.Textbox(
-                        label="Describe your query",
-                        placeholder="Example: Show customer profile based on /age /salary /education",
-                        lines=4,
-                        interactive=True
-                    )
-                    column_suggestions = gr.Dataframe(
-                        headers=["Column Name", "Table", "Type"],
-                        visible=False,
-                        interactive=True
-                    )
+                query = gr.Textbox(
+                    label="Describe your query",
+                    placeholder="Example: Show customer profile based on selected columns",
+                    lines=4
+                )
+                columns = gr.Dropdown(
+                    choices=app._get_available_columns(),
+                    multiselect=True,
+                    label="Select Columns",
+                    info="Choose columns to include in your query"
+                )
                 generate_btn = gr.Button("🚀 Generate SQL", variant="primary")
-
-                # Add event handlers for column suggestions
-                query.change(
-                    fn=app._get_column_suggestions,
-                    inputs=[query],
-                    outputs=[column_suggestions],
-                    show_progress=False
-                )
-
-                column_suggestions.select(
-                    fn=app._insert_column,
-                    inputs=[query, column_suggestions],
-                    outputs=[query],
-                    show_progress=False
-                )
         
         with gr.Tabs() as tabs:
             with gr.TabItem("📝 Generated SQL"):
@@ -311,7 +257,7 @@ def create_gradio_interface():
         # Set up event handler
         generate_btn.click(
             fn=app.process_query,
-            inputs=[api_key, query, model, temperature, similarity_threshold],
+            inputs=[api_key, query, columns, model, temperature, similarity_threshold],
             outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
         )
         
