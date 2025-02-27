@@ -623,21 +623,20 @@ Validation Results:"""
                         except Exception as e:
                             logger.error(f"Error processing statement in {file_path}: {str(e)}")
                             continue
-                                
-                                # For SELECT statements, also store the column list separately
-                                if operation_type == "SELECT":
-                                    columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
-                                    if columns_match:
-                                        columns_text = columns_match.group(1)
-                                        texts.append(columns_text)
-                                        metadatas.append({
-                                            "source": file_path,
-                                            "content": columns_text,
-                                            "type": "column_list",
-                                            "parent_statement": cleaned_stmt
-                                        })
-                            
-                            logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
+                                    # For SELECT statements, also store the column list separately
+                                    if operation_type == "SELECT":
+                                        columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
+                                        if columns_match:
+                                            columns_text = columns_match.group(1)
+                                            texts.append(columns_text)
+                                            metadatas.append({
+                                                "source": file_path,
+                                                "content": columns_text,
+                                                "type": "column_list",
+                                                "parent_statement": cleaned_stmt
+                                            })
+                                    
+                                    logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
                     
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
