@@ -134,31 +134,46 @@ Intent Analysis:"""
 Analyzed Intent:
 {intent}
 
-CRITICAL RULES:
-1. You MUST ONLY use tables and columns that appear in the example queries above
-2. Copy exact table and column names from the examples - do not modify or invent names
-3. Use the same schema prefixes (like [dbo], etc.) as shown in the examples
-4. Follow the same NOLOCK hints and JOIN patterns shown in the examples
-5. If a required table or column is not in the examples, DO NOT generate a query
+Follow these steps to generate the query:
 
-MS SQL Best Practices:
-1. Use the exact JOIN types and NOLOCK hints as shown in examples
-2. Copy schema names and square bracket usage exactly as shown
-3. Follow the same WHERE clause patterns from examples
-4. Use GROUP BY/ORDER BY exactly as demonstrated
-5. Only use MS SQL features shown in the examples:
-   - Only use CTEs if examples show them
-   - Copy ISNULL/COALESCE usage patterns
-   - Follow the same date handling patterns
-   - Use the same transaction patterns
+1. Pattern Matching:
+   - Find the most similar example query pattern that matches the intent
+   - Note how it handles similar requirements (joins, aggregations, etc.)
+   - Copy its overall structure while adapting to current needs
 
-Validation Steps:
-1. Verify every table exists in examples
-2. Verify every column exists in examples
-3. Check all JOIN conditions match example patterns
-4. Ensure all functions used appear in examples
+2. Table Selection:
+   - Use ONLY tables identified in the intent analysis
+   - Copy exact table names and schema prefixes from examples
+   - Maintain NOLOCK hints exactly as shown in examples
+   - Follow the same JOIN patterns for these tables
 
-Generated SQL Query (ONLY if all tables/columns are available):"""
+3. Column Selection:
+   - Use ONLY columns identified in the intent analysis
+   - Copy exact column names and any wrapping functions
+   - Maintain ISNULL/COALESCE patterns from examples
+   - Follow example patterns for calculations
+
+4. Query Construction:
+   - Build SELECT clause using identified columns
+   - Copy JOIN syntax exactly from examples
+   - Use WHERE conditions matching example patterns
+   - Follow example patterns for:
+     * Date handling
+     * Aggregations
+     * GROUP BY/ORDER BY
+     * CTEs (only if examples use them)
+     * Transaction patterns
+
+5. Validation:
+   - Verify every table/column exists in examples
+   - Check all joins match example patterns
+   - Ensure all functions appear in examples
+   - Validate against business requirements
+
+CRITICAL: Only generate a query if ALL required tables and columns are found in examples.
+If anything is missing, explain what's not available.
+
+Generated SQL Query:"""
         )
         self.query_chain = self.query_prompt | self.llm
         
