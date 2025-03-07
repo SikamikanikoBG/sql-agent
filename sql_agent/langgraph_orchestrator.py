@@ -621,11 +621,25 @@ Validation Results (include all issues found):"""
         
         for file_path in sql_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    
-                    # First split by major SQL statements
-                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
+                # Try different encodings
+                encodings = ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']
+                content = None
+                
+                for encoding in encodings:
+                    try:
+                        with open(file_path, 'r', encoding=encoding) as f:
+                            content = f.read()
+                            logger.debug(f"Successfully read file with {encoding} encoding")
+                            break
+                    except UnicodeDecodeError:
+                        logger.debug(f"Failed to read with {encoding} encoding")
+                        continue
+                
+                if content is None:
+                    raise ValueError(f"Could not read file {file_path} with any supported encoding")
+                
+                # First split by major SQL statements
+                statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
                     
                     # Initialize cleaned_stmt at the start
                     cleaned_stmt = ""
