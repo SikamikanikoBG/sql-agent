@@ -786,12 +786,12 @@ Validation Results (include all issues found):"""
                         raise ValueError(f"Could not read file {file} with any supported encoding")
                 
                     file_metadata = self.extract_metadata(sql_content)
-                        
-                        # Merge permanent tables
-                        self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
-                        
-                        # Merge temp tables with their source tables
-                        for temp_name, temp_info in file_metadata["temp_tables"].items():
+                    
+                    # Merge permanent tables
+                    self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
+                    
+                    # Merge temp tables with their source tables
+                    for temp_name, temp_info in file_metadata["temp_tables"].items():
                             if temp_name not in self.metadata["temp_tables"]:
                                 self.metadata["temp_tables"][temp_name] = temp_info
                             else:
