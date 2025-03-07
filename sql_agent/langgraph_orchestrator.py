@@ -312,15 +312,23 @@ Review Results:"""
             with st.spinner("✍️ Generating SQL query..."):
                 logger.info("Starting query generation...")
             try:
-                # Create initial empty query result
-                temp_query = ""
-                
-                # Get the initial query result
-                query_result = self.query_chain.invoke({
+                # First pass to identify temp tables
+                initial_result = self.query_chain.invoke({
                     "intent": intent_result.content,
                     "metadata": "",  # Empty metadata when we have examples
                     "similar_examples": context,
-                    "temp_tables": self._format_temp_table_dependencies(temp_query)
+                    "temp_tables": ""  # Empty for first pass
+                })
+                
+                # Extract temp table dependencies
+                temp_tables_info = self._format_temp_table_dependencies(initial_result.content)
+                
+                # Second pass with temp table information
+                query_result = self.query_chain.invoke({
+                    "intent": intent_result.content,
+                    "metadata": "",
+                    "similar_examples": context,
+                    "temp_tables": temp_tables_info
                 })
                 logger.info("Query generation completed")
                 self._update_usage_stats(query_result)

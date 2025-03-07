@@ -6,13 +6,14 @@ import logging
 
 class SQLAgentOrchestrator:
     def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
-        """Extract metadata from SQL content including tables"""
+        """Extract metadata from SQL content including tables and their dependencies"""
         metadata = {
             "tables": [],
             "views": [],
             "procedures": [],
             "temp_tables": [],
-            "table_variables": []
+            "table_variables": [],
+            "dependencies": {}
         }
         
         # Regular table pattern
@@ -25,13 +26,27 @@ class SQLAgentOrchestrator:
                     "definition": match.group(2).strip()
                 })
 
-        # Temporary table pattern
-        temp_pattern = r'CREATE\s+TABLE\s+(#[\w\d_]+)\s*\((.*?)\);'
+        # Temporary table pattern with full statement capture
+        temp_pattern = r'(CREATE\s+TABLE\s+#[\w\d_]+\s*\(.*?;\s*(?:SELECT|INSERT).*?(?:;\s*|$))'
         for match in re.finditer(temp_pattern, sql_content, re.IGNORECASE | re.DOTALL):
-            metadata["temp_tables"].append({
-                "name": match.group(1),
-                "definition": match.group(2).strip()
-            })
+            full_stmt = match.group(1)
+            table_match = re.search(r'CREATE\s+TABLE\s+(#[\w\d_]+)', full_stmt, re.IGNORECASE)
+            if table_match:
+                temp_name = table_match.group(1)
+                # Find dependencies in the full statement
+                deps = set()
+                dep_pattern = r'(?:FROM|JOIN)\s+(#?[\w\d_]+)'
+                for dep_match in re.finditer(dep_pattern, full_stmt, re.IGNORECASE):
+                    dep_table = dep_match.group(1)
+                    if dep_table != temp_name:  # Avoid self-reference
+                        deps.add(dep_table)
+                
+                metadata["temp_tables"].append({
+                    "name": temp_name,
+                    "definition": full_stmt.strip(),
+                    "dependencies": list(deps)
+                })
+                metadata["dependencies"][temp_name] = list(deps)
 
         # View pattern
         view_pattern = r'CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+([^\s(]+)\s+AS\s+(.*?);'
