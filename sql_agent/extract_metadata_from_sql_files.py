@@ -1,4 +1,6 @@
 import re
+import os
+from pathlib import Path
 from typing import List, Dict, Any
 import logging
 
@@ -50,9 +52,18 @@ class SQLAgentOrchestrator:
 
         return metadata
 
-    def extract_metadata_from_sql_files(self, files: List[str]) -> Dict[str, Any]:
-        """Extract metadata from SQL files"""
-        if not files:
+    def _get_all_sql_files(self, directory: str) -> List[str]:
+        """Recursively find all SQL files in directory and subdirectories."""
+        sql_files = []
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if file.lower().endswith('.sql'):
+                    sql_files.append(os.path.join(root, file))
+        return sql_files
+
+    def extract_metadata_from_sql_files(self, paths: List[str]) -> Dict[str, Any]:
+        """Extract metadata from SQL files and directories"""
+        if not paths:
             return {
                 "tables": [],
                 "views": [],
@@ -69,7 +80,15 @@ class SQLAgentOrchestrator:
             "table_variables": []
         }
 
-        for file_path in files:
+        # Collect all SQL files, including those in subdirectories
+        sql_files = []
+        for path in paths:
+            if os.path.isdir(path):
+                sql_files.extend(self._get_all_sql_files(path))
+            elif path.lower().endswith('.sql'):
+                sql_files.append(path)
+
+        for file_path in sql_files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     sql_content = f.read()
