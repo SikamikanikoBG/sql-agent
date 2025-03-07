@@ -113,12 +113,16 @@ Important Rules:
 1. You MUST ONLY use tables and columns that appear in the example queries above
 2. Do not invent or assume any tables or columns that are not shown in the examples
 3. If required tables/columns are not found in examples, state this explicitly
+4. Pay special attention to temporary tables (#TableName) and their dependencies
 
 Please identify:
 1. Required tables (ONLY from examples above) and their relationships
+   - List permanent tables needed
+   - List temporary tables needed and their creation order
 2. Available columns from these tables that match the requirements
 3. Filters or conditions using only existing columns
 4. Sorting or grouping requirements using only existing columns
+5. Temporary table dependencies and creation sequence
 
 If any part of the query cannot be satisfied with the available tables/columns, explain what is missing.
 
@@ -144,25 +148,33 @@ Analyzed Intent:
 
 Follow these steps to generate the query:
 
-1. Pattern Matching:
+1. Temporary Table Analysis:
+   - Review all temporary tables (#TableName) needed
+   - Ensure all temp table dependencies are included
+   - Follow the exact creation order from dependencies
+   - Copy temp table creation patterns from examples
+
+2. Pattern Matching:
    - Find the most similar example query pattern that matches the intent
    - Note how it handles similar requirements (joins, aggregations, etc.)
    - Copy its overall structure while adapting to current needs
 
-2. Table Selection:
+3. Table Selection:
    - Use ONLY tables identified in the intent analysis
+   - Include all required temporary tables in correct order
    - Copy exact table names and schema prefixes from examples
    - Maintain NOLOCK hints exactly as shown in examples
    - Follow the same JOIN patterns for these tables
 
-3. Column Selection:
+4. Column Selection:
    - Use ONLY columns identified in the intent analysis
    - Copy exact column names and any wrapping functions
    - Maintain ISNULL/COALESCE patterns from examples
    - Follow example patterns for calculations
 
-4. Query Construction:
-   - Build SELECT clause using identified columns
+5. Query Construction:
+   - First output all required temp table creation statements
+   - Then build main query SELECT clause
    - Copy JOIN syntax exactly from examples
    - Use WHERE conditions matching example patterns
    - Follow example patterns for:
@@ -172,14 +184,17 @@ Follow these steps to generate the query:
      * CTEs (only if examples use them)
      * Transaction patterns
 
-5. Validation:
+6. Validation:
    - Verify every table/column exists in examples
    - Check all joins match example patterns
    - Ensure all functions appear in examples
+   - Validate temp table creation order
    - Validate against business requirements
 
-CRITICAL: Only generate a query if ALL required tables and columns are found in examples.
-If anything is missing, explain what's not available.
+CRITICAL: 
+- Only generate a query if ALL required tables and columns are found in examples
+- Ensure ALL temporary table dependencies are included in correct order
+- If anything is missing, explain what's not available
 
 Generated SQL Query:"""
         )
