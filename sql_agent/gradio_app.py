@@ -144,7 +144,37 @@ class SQLAgentGradioApp:
             dependencies = self.agent.temp_table_resolver.get_all_dependencies(results.generated_query)
             dependency_viz = self.dependency_visualizer.create_dependency_graph(dependencies)
             
-            return results.generated_query, explanation, similar_examples, usage_info, agent_interactions, dependency_viz
+            # Format prompt inspection details
+            prompt_inspection = "## 🔍 Prompt Details\n\n"
+            
+            # Add temp table dependencies
+            prompt_inspection += "### Temporary Table Dependencies\n"
+            prompt_inspection += "```\n"
+            prompt_inspection += self.agent._format_temp_table_dependencies(results.generated_query)
+            prompt_inspection += "\n```\n\n"
+            
+            # Add formatted examples used in prompts
+            prompt_inspection += "### Formatted Examples\n"
+            prompt_inspection += "```\n"
+            prompt_inspection += self.agent._format_examples(results.similarity_search)
+            prompt_inspection += "\n```\n\n"
+            
+            # Add metadata formatting
+            if self.metadata:
+                prompt_inspection += "### Formatted Metadata\n"
+                prompt_inspection += "```\n"
+                prompt_inspection += self.agent._format_metadata(self.metadata)
+                prompt_inspection += "\n```\n"
+            
+            return (
+                results.generated_query, 
+                explanation, 
+                similar_examples, 
+                usage_info, 
+                agent_interactions, 
+                dependency_viz,
+                prompt_inspection
+            )
             
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}")
@@ -273,12 +303,15 @@ def create_gradio_interface():
                 
             with gr.TabItem("🔄 Dependencies"):
                 dependencies_output = gr.HTML(label="Temporary Table Dependencies", value="No dependencies found yet.")
+                
+            with gr.TabItem("🔍 Prompt Inspector"):
+                prompt_inspector_output = gr.Markdown(label="Prompt Details")
         
         # Set up event handler
         generate_btn.click(
             fn=app.process_query,
             inputs=[api_key, query, columns, model, temperature, similarity_threshold, max_examples],
-            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
+            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output, dependencies_output, prompt_inspector_output]
         )
         
         # Initialize app

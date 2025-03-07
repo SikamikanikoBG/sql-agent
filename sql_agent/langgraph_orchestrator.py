@@ -721,15 +721,39 @@ Review Results:"""
                                     })
                                     
                                     # Track temp table definitions
-                                    if operation_type == "CREATE" and "#" in full_stmt:
-                                        temp_match = re.search(r'CREATE\s+TABLE\s+(#[\w]+)', full_stmt, re.IGNORECASE)
-                                        if temp_match:
-                                            temp_name = temp_match.group(1)
-                                            self.temp_table_resolver.add_temp_table(
-                                                temp_name,
-                                                full_stmt,
-                                                file_path
-                                            )
+                                    if "#" in full_stmt:
+                                        # Look for CREATE TABLE statements
+                                        if operation_type == "CREATE":
+                                            temp_match = re.search(r'CREATE\s+TABLE\s+(#[\w]+)', full_stmt, re.IGNORECASE)
+                                            if temp_match:
+                                                temp_name = temp_match.group(1)
+                                                self.temp_table_resolver.add_temp_table(
+                                                    temp_name,
+                                                    full_stmt,
+                                                    file_path
+                                                )
+                                        # Also look for INSERT INTO temp tables
+                                        elif operation_type == "INSERT":
+                                            temp_match = re.search(r'INSERT\s+INTO\s+(#[\w]+)', full_stmt, re.IGNORECASE)
+                                            if temp_match:
+                                                temp_name = temp_match.group(1)
+                                                if temp_name not in self.temp_table_resolver.temp_tables:
+                                                    self.temp_table_resolver.add_temp_table(
+                                                        temp_name,
+                                                        full_stmt,
+                                                        file_path
+                                                    )
+                                        # And SELECT INTO temp tables
+                                        elif operation_type == "SELECT":
+                                            temp_match = re.search(r'SELECT\s+.*?\s+INTO\s+(#[\w]+)', full_stmt, re.IGNORECASE | re.DOTALL)
+                                            if temp_match:
+                                                temp_name = temp_match.group(1)
+                                                if temp_name not in self.temp_table_resolver.temp_tables:
+                                                    self.temp_table_resolver.add_temp_table(
+                                                        temp_name,
+                                                        full_stmt,
+                                                        file_path
+                                                    )
                                     
                                     # For SELECT statements, also store the column list separately
                                     if operation_type == "SELECT":
