@@ -79,9 +79,9 @@ class SQLAgentOrchestrator:
         
         # Initialize text splitter for SQL
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=3000,  # Larger chunks to maintain SQL statement context
-            chunk_overlap=1000,  # More overlap to avoid breaking statements
-            separators=[";", "\nGO\n", "\nBEGIN\n", "\nEND\n", "\n\n", "\n", " "],  # SQL-specific separators
+            chunk_size=8000,  # Much larger chunks to maintain full query context
+            chunk_overlap=2000,  # Larger overlap to ensure we don't miss context
+            separators=["\nGO\n", ";\n\n", ";\n", ";", "\nBEGIN\n", "\nEND\n", "\n\n"],  # Prioritize keeping statements together
             length_function=len
         )
         
@@ -661,17 +661,27 @@ Review Results:"""
                                 
                                 # Only store non-trivial SQL statements
                                 if len(full_stmt.split()) > 10:  # Meaningful statements
-                                    # Clean and normalize the statement
-                                    cleaned_stmt = ' '.join(full_stmt.split())
+                                    # Get surrounding context (previous statement if exists)
+                                    start_idx = max(0, i-2)  # Go back 2 statements
+                                    context_before = ' '.join(statements[start_idx:i]).strip()
                                     
-                                    # Store both the full statement and key parts
+                                    # Include next statement for context if exists
+                                    end_idx = min(len(statements), i+3)  # Include next statement
+                                    context_after = ' '.join(statements[i+2:end_idx]).strip()
+                                    
+                                    # Combine with context
+                                    full_context = f"{context_before}\n{full_stmt}\n{context_after}".strip()
+                                    cleaned_stmt = ' '.join(full_context.split())
+                                    
+                                    # Store with context
                                     texts.append(cleaned_stmt)
                                     metadatas.append({
                                         "source": file_path,
                                         "content": cleaned_stmt,
                                         "type": "sql_statement",
                                         "operation": operation_type,
-                                        "size": len(cleaned_stmt)
+                                        "size": len(cleaned_stmt),
+                                        "has_context": True
                                     })
                                     
                                     # For SELECT statements, also store the column list separately
