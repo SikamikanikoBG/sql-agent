@@ -7,6 +7,7 @@ import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 from sql_agent.metadata_extractor import MetadataExtractor
 from sql_agent.visualization import SimilaritySearchResultPlot
+from sql_agent.utils.dependency_visualizer import DependencyVisualizer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,8 +19,9 @@ class SQLAgentGradioApp:
     def __init__(self):
         self.metadata_extractor = MetadataExtractor()
         self.metadata = None
-        # Initialize agent and vector store once at startup
+        # Initialize components
         self.agent = SQLAgentOrchestrator()
+        self.dependency_visualizer = DependencyVisualizer()
         self._initialize_data()
 
     def _get_available_columns(self) -> List[str]:
@@ -69,7 +71,7 @@ class SQLAgentGradioApp:
             logger.error(f"Error initializing data: {str(e)}")
             return f"❌ Error initializing data: {str(e)}"
 
-    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float, max_examples: int) -> Tuple[str, str, str, str, str]:
+    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float, max_examples: int) -> Tuple[str, str, str, str, str, str]:
         """Process a query and return results"""
         if not api_key.strip():
             return "⚠️ API Key Required", "", "", "", ""
@@ -138,7 +140,11 @@ class SQLAgentGradioApp:
             usage_info += f"- **Total Tokens:** {usage_stats.total_tokens:,}\n"
             usage_info += f"- **Cost:** ${usage_stats.cost:.4f}\n"
             
-            return results.generated_query, explanation, similar_examples, usage_info, agent_interactions
+            # Generate dependency visualization
+            dependencies = self.agent.temp_table_resolver.get_all_dependencies(results.generated_query)
+            dependency_viz = self.dependency_visualizer.create_dependency_graph(dependencies)
+            
+            return results.generated_query, explanation, similar_examples, usage_info, agent_interactions, dependency_viz
             
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}")
