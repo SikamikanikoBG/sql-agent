@@ -79,8 +79,8 @@ class SQLAgentOrchestrator:
         
         # Initialize text splitter for SQL
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,  # Larger chunks to maintain SQL statement context
-            chunk_overlap=300,  # More overlap to avoid breaking statements
+            chunk_size=3000,  # Larger chunks to maintain SQL statement context
+            chunk_overlap=1000,  # More overlap to avoid breaking statements
             separators=[";", "\nGO\n", "\nBEGIN\n", "\nEND\n", "\n\n", "\n", " "],  # SQL-specific separators
             length_function=len
         )
