@@ -1,5 +1,6 @@
 import re
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Set
+from sql_agent.utils.dependency_resolver import TempTableDependencyResolver
 import logging
 from dataclasses import dataclass
 import streamlit as st
@@ -46,6 +47,7 @@ class SQLAgentOrchestrator:
         similarity_threshold: float = 0.3,  # Lower threshold to get more matches
         max_examples: int = 10  # Increase number of examples
     ):
+        self.temp_table_resolver = TempTableDependencyResolver()
         """Initialize the SQL Agent Orchestrator.
         
         Args:
@@ -126,8 +128,14 @@ Intent Analysis:"""
         
         # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
-            input_variables=["intent", "metadata", "similar_examples"],
-            template="""Generate a MS SQL query based on the analyzed intent and similar examples:
+            input_variables=["intent", "metadata", "similar_examples", "temp_tables"],
+            template="""Generate a complete MS SQL query solution based on the analyzed intent and similar examples.
+
+First, here are the temporary table dependencies that need to be created:
+
+{temp_tables}
+
+Now, generate the complete solution including:
 
 {similar_examples}
 
@@ -304,10 +312,12 @@ Review Results:"""
             with st.spinner("✍️ Generating SQL query..."):
                 logger.info("Starting query generation...")
             try:
+                # Get the initial query result
                 query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
                     "metadata": "",  # Empty metadata when we have examples
-                    "similar_examples": context
+                    "similar_examples": context,
+                    "temp_tables": self._format_temp_table_dependencies(query_result.content)
                 })
                 logger.info("Query generation completed")
                 self._update_usage_stats(query_result)
@@ -684,6 +694,17 @@ Review Results:"""
                                         "has_context": True
                                     })
                                     
+                                    # Track temp table definitions
+                                    if operation_type == "CREATE" and "#" in full_stmt:
+                                        temp_match = re.search(r'CREATE\s+TABLE\s+(#[\w]+)', full_stmt, re.IGNORECASE)
+                                        if temp_match:
+                                            temp_name = temp_match.group(1)
+                                            self.temp_table_resolver.add_temp_table(
+                                                temp_name,
+                                                full_stmt,
+                                                file_path
+                                            )
+                                    
                                     # For SELECT statements, also store the column list separately
                                     if operation_type == "SELECT":
                                         columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
@@ -845,3 +866,18 @@ Review Results:"""
             self.metadata["tables"] = list(set(self.metadata["tables"]))
             
         return self.metadata
+    def _format_temp_table_dependencies(self, query: str) -> str:
+        """Format temp table dependencies for the prompt."""
+        dependencies = self.temp_table_resolver.get_all_dependencies(query)
+        if not dependencies:
+            return "No temporary tables required."
+            
+        formatted = ["Required temporary tables in creation order:"]
+        for i, dep in enumerate(dependencies, 1):
+            formatted.extend([
+                f"\n{i}. {dep['table']}",
+                "```sql",
+                dep['definition'].strip(),
+                "```\n"
+            ])
+        return "\n".join(formatted)
