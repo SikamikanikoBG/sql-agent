@@ -45,7 +45,7 @@ class SQLAgentOrchestrator:
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
         similarity_threshold: float = 0.01,  # Very low threshold to catch more potential matches
-        max_examples: int = 10  # Increase number of examples
+        max_examples: int = 25  # Significantly more examples for richer context
     ):
         self.temp_table_resolver = TempTableDependencyResolver()
         """Initialize the SQL Agent Orchestrator.

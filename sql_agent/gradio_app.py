@@ -69,7 +69,7 @@ class SQLAgentGradioApp:
             logger.error(f"Error initializing data: {str(e)}")
             return f"❌ Error initializing data: {str(e)}"
 
-    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float) -> Tuple[str, str, str, str, str]:
+    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float, max_examples: int) -> Tuple[str, str, str, str, str]:
         """Process a query and return results"""
         if not api_key.strip():
             return "⚠️ API Key Required", "", "", "", ""
@@ -85,6 +85,7 @@ class SQLAgentGradioApp:
             self.agent.model_name = model
             self.agent.temperature = temperature
             self.agent.similarity_threshold = similarity_threshold
+            self.agent.max_examples = max_examples
             
             # Process query
             results, usage_stats = self.agent.process_query(query, self.metadata)
@@ -223,6 +224,14 @@ def create_gradio_interface():
                     step=0.05,
                     label="Similarity Threshold"
                 )
+                max_examples = gr.Slider(
+                    minimum=5,
+                    maximum=50,
+                    value=25,
+                    step=5,
+                    label="Maximum Examples",
+                    info="Maximum number of similar examples to retrieve"
+                )
             
             with gr.Column(scale=2):
                 # Query input and column selection
@@ -259,7 +268,7 @@ def create_gradio_interface():
         # Set up event handler
         generate_btn.click(
             fn=app.process_query,
-            inputs=[api_key, query, columns, model, temperature, similarity_threshold],
+            inputs=[api_key, query, columns, model, temperature, similarity_threshold, max_examples],
             outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
         )
         
