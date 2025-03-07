@@ -270,6 +270,9 @@ def create_gradio_interface():
             
             with gr.TabItem("🤖 Agent Interactions"):
                 agent_interactions_output = gr.Markdown(label="Interactions")
+                
+            with gr.TabItem("🔄 Dependencies"):
+                dependencies_output = gr.HTML(label="Temporary Table Dependencies", value="No dependencies found yet.")
         
         # Set up event handler
         generate_btn.click(
