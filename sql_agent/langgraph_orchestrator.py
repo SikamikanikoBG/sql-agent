@@ -768,9 +768,24 @@ Validation Results (include all issues found):"""
             
             for file in files:
                 try:
-                    with open(file, 'r', encoding='utf-8') as f:
-                        sql_content = f.read()
-                        file_metadata = self.extract_metadata(sql_content)
+                    # Try different encodings
+                    encodings = ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']
+                    sql_content = None
+            
+                    for encoding in encodings:
+                        try:
+                            with open(file, 'r', encoding=encoding) as f:
+                                sql_content = f.read()
+                                logger.debug(f"Successfully read file with {encoding} encoding")
+                                break
+                        except UnicodeDecodeError:
+                            logger.debug(f"Failed to read with {encoding} encoding")
+                            continue
+            
+                    if sql_content is None:
+                        raise ValueError(f"Could not read file {file} with any supported encoding")
+                
+                    file_metadata = self.extract_metadata(sql_content)
                         
                         # Merge permanent tables
                         self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
