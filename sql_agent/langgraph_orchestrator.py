@@ -180,38 +180,44 @@ Generated SQL Query:"""
         # Query validation chain for MS SQL
         self.validation_prompt = PromptTemplate(
             input_variables=["query", "metadata", "similar_examples"],
-            template="""Strictly validate the following MS SQL query against the similar examples:
+            template="""Review the following MS SQL query and provide validation feedback:
 
-Similar Examples (ONLY valid source of tables/columns):
+Similar Examples (Reference patterns):
 {similar_examples}
 
-SQL Query to Validate:
+SQL Query to Review:
 {query}
 
-Validation Steps:
-1. Table Validation:
-   - Check each table exists in examples with exact same name and schema
-   - Verify table usage matches example patterns
-   - Flag any tables not found in examples
+Review Guidelines:
+1. Table Usage:
+   - Note which tables match example patterns exactly
+   - Identify tables with similar patterns but different names
+   - List any tables without clear precedent
 
-2. Column Validation:
-   - Verify each column exists in example queries
-   - Check column names match exactly (including case and brackets)
-   - Flag any columns not shown in examples
+2. Column Usage:
+   - Note columns that match examples exactly
+   - Identify columns with similar patterns/purposes
+   - List any columns without clear precedent
 
-3. Join Validation:
-   - Confirm JOIN syntax matches examples
-   - Verify NOLOCK hints match example usage
-   - Check JOIN conditions use valid columns
+3. Query Structure:
+   - Compare JOIN patterns with examples
+   - Check function usage against examples
+   - Review WHERE/GROUP BY/ORDER BY patterns
 
-4. Pattern Matching:
-   - Verify all functions used appear in examples
-   - Check WHERE clause patterns match examples
-   - Validate GROUP BY/ORDER BY follows examples
+4. Confidence Assessment:
+   - High: Query follows example patterns closely
+   - Medium: Query uses similar patterns with some variations
+   - Low: Query deviates significantly from examples
 
-CRITICAL: The query is only valid if it uses EXCLUSIVELY tables and columns from the examples.
+Provide:
+1. Confidence level (High/Medium/Low)
+2. List of validated elements
+3. List of potential risks or uncertainties
+4. Suggestions for improvement
 
-Validation Results (include all issues found):"""
+Note: Generate warnings for uncertainties but allow query execution unless critical issues found.
+
+Review Results:"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
