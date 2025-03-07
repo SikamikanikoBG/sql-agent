@@ -799,15 +799,15 @@ Validation Results (include all issues found):"""
                                 existing_sources = set(self.metadata["temp_tables"][temp_name]["source_tables"])
                                 new_sources = set(temp_info["source_tables"])
                                 self.metadata["temp_tables"][temp_name]["source_tables"] = list(existing_sources | new_sources)
-                        
-                        # Merge table variables
-                        self.metadata["table_variables"].update(file_metadata["table_variables"])
-                        
-                        # Merge CTEs
-                        self.metadata["ctes"].update(file_metadata["ctes"])
-                        
-                        # Store file-specific metadata
-                        self.metadata[file] = file_metadata
+                    
+                    # Merge table variables
+                    self.metadata["table_variables"].update(file_metadata["table_variables"])
+                    
+                    # Merge CTEs
+                    self.metadata["ctes"].update(file_metadata["ctes"])
+                    
+                    # Store file-specific metadata
+                    self.metadata[file] = file_metadata
                 except Exception as e:
                     logger.error(f"Error processing file {file}: {str(e)}", exc_info=True)
                     
