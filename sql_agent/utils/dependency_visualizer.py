@@ -1,50 +1,58 @@
-import graphviz
 from typing import List, Dict
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 class DependencyVisualizer:
     """Visualizes SQL temporary table dependencies."""
     
-    def __init__(self):
-        self.dot = graphviz.Digraph(comment='Temporary Table Dependencies')
-        self.dot.attr(rankdir='LR')
-        
     def create_dependency_graph(self, dependencies: List[Dict[str, str]]) -> str:
-        """Creates an HTML representation of the dependency graph."""
+        """Creates a text-based representation of the dependency graph."""
         try:
-            # Clear previous graph
-            self.dot.clear()
-            
-            # Add nodes and edges
-            added_nodes = set()
-            added_edges = set()
-            
+            if not dependencies:
+                return "<pre>No temporary table dependencies found.</pre>"
+                
+            # Build dependency tree
+            tree = {}
             for dep in dependencies:
                 table_name = dep['table']
-                if table_name not in added_nodes:
-                    self.dot.node(table_name, table_name)
-                    added_nodes.add(table_name)
-                
-                # Extract dependencies from definition
                 definition = dep['definition']
+                deps = set()
+                
+                # Extract dependencies
                 dep_pattern = r'(?:FROM|JOIN)\s+(#[\w]+)'
-                import re
                 for match in re.finditer(dep_pattern, definition, re.IGNORECASE):
                     dep_table = match.group(1)
                     if dep_table != table_name:  # Avoid self-reference
-                        if dep_table not in added_nodes:
-                            self.dot.node(dep_table, dep_table)
-                            added_nodes.add(dep_table)
-                        edge = (dep_table, table_name)
-                        if edge not in added_edges:
-                            self.dot.edge(*edge)
-                            added_edges.add(edge)
+                        deps.add(dep_table)
+                        
+                tree[table_name] = list(deps)
             
-            # Return SVG as string
-            return self.dot.pipe(format='svg').decode('utf-8')
+            # Generate ASCII tree
+            lines = ['<pre>Temporary Table Dependencies:', '']
+            
+            def print_tree(table: str, prefix: str = '', is_last: bool = True) -> List[str]:
+                result = []
+                branch = '└── ' if is_last else '├── '
+                result.append(prefix + branch + table)
+                
+                if table in tree:
+                    new_prefix = prefix + ('    ' if is_last else '│   ')
+                    deps = tree[table]
+                    for i, dep in enumerate(deps):
+                        result.extend(print_tree(dep, new_prefix, i == len(deps) - 1))
+                        
+                return result
+            
+            # Print each root node
+            root_tables = set(tree.keys()) - {d for deps in tree.values() for d in deps}
+            for i, root in enumerate(sorted(root_tables)):
+                lines.extend(print_tree(root, '', i == len(root_tables) - 1))
+            
+            lines.append('</pre>')
+            return '\n'.join(lines)
             
         except Exception as e:
             logger.error(f"Error creating dependency graph: {str(e)}")
-            return f"<p>Error creating dependency graph: {str(e)}</p>"
+            return f"<pre>Error creating dependency graph: {str(e)}</pre>"
