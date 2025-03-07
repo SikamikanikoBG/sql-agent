@@ -640,12 +640,12 @@ Validation Results (include all issues found):"""
                 
                 # First split by major SQL statements
                 statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
-                    
-                    # Initialize cleaned_stmt at the start
-                    cleaned_stmt = ""
-                    
-                    for i in range(1, len(statements), 2):
-                        try:
+                
+                # Initialize cleaned_stmt at the start
+                cleaned_stmt = ""
+                
+                for i in range(1, len(statements), 2):
+                    try:
                             if i+1 < len(statements):
                                 # Extract the main SQL operation type first
                                 operation_type = statements[i].strip().upper()
