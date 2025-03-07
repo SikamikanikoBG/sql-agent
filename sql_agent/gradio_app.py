@@ -50,10 +50,10 @@ class SQLAgentGradioApp:
             # Create data folder if it doesn't exist
             data_path.mkdir(parents=True, exist_ok=True)
             
-            sql_files = list(data_path.glob("*.sql"))
+            sql_files = list(data_path.rglob("*.sql"))
             if not sql_files:
-                logger.warning(f"No SQL files found in {data_path}")
-                return "⚠️ No SQL files found in data folder. Please add .sql files to continue."
+                logger.warning(f"No SQL files found in {data_path} or its subdirectories")
+                return "⚠️ No SQL files found in data folder or subdirectories. Please add .sql files to continue."
                 
             # Extract metadata and initialize vector store once
             self.metadata = self.metadata_extractor.extract_metadata_from_sql_files(
