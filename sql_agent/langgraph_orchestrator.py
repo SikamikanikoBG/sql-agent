@@ -389,15 +389,15 @@ Review Results:"""
                 error=str(e)
             ), self.usage_stats
             
-    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
-        """Find similar SQL examples from the vector store.
+    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, Dict]], List[float], List[List[float]]]:
+        """Find similar SQL examples and their complete source files.
         
         Args:
             query: The user's query to find similar examples for
             
         Returns:
             Tuple containing:
-            - List of (score, content) tuples
+            - List of (score, content) tuples with full file contents
             - Query vector
             - List of metadata vectors
         """
@@ -418,39 +418,49 @@ Review Results:"""
                 logger.info(f"Metadata: {doc.metadata}")
                 
             # Convert L2 distance to cosine similarity (0-1 range)
-            # FAISS returns (Document, score) tuples
             max_distance = max(score for doc, score in results) if results else 1
             normalized_results = []
             for doc, score in results:
-                # Convert L2 distance to similarity score (0-1)
                 similarity = 1 - (score / max_distance)
                 normalized_results.append((similarity, doc))
-                logger.info(f"Original L2 distance: {score}, Normalized similarity: {similarity}")
-            
-            logger.info("Normalized similarity scores:")
-            for score, doc in normalized_results:
-                logger.info(f"Normalized score: {score}")
             
             # Get embeddings
             query_vector = self.embeddings.embed_query(query)
             metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
             
+            # Track processed files to avoid duplicates
+            processed_files = set()
             similar_examples = []
+            
             for similarity, doc in normalized_results:
-                logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
-                # Include examples that meet the threshold
                 if similarity >= self.similarity_threshold:
                     try:
-                        example = {
-                            'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
-                            'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
-                        }
-                        similar_examples.append((similarity, example))
-                        logger.info(f"Added example with similarity {similarity}")
+                        source_file = doc.metadata.get('source', 'Unknown')
+                        
+                        # Only process each source file once
+                        if source_file not in processed_files and source_file != 'Unknown':
+                            processed_files.add(source_file)
+                            
+                            # Read the complete source file
+                            try:
+                                with open(source_file, 'r', encoding='utf-8') as f:
+                                    full_content = f.read()
+                            except UnicodeDecodeError:
+                                with open(source_file, 'r', encoding='latin1') as f:
+                                    full_content = f.read()
+                            
+                            # Create example with both the matching part and full file
+                            example = {
+                                'matching_content': doc.page_content,
+                                'full_content': full_content,
+                                'source': source_file,
+                                'matching_score': similarity
+                            }
+                            similar_examples.append((similarity, example))
+                            logger.info(f"Added full file content from {source_file}")
+                            
                     except Exception as e:
                         logger.error(f"Error processing document: {str(e)}")
-                else:
-                    logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
             
             return similar_examples, query_vector, metadata_vectors
             
@@ -519,11 +529,11 @@ Review Results:"""
         
         return "\n".join(sections)
     
-    def _format_examples(self, examples: List[Tuple[float, str]]) -> str:
-        """Format similar examples for prompt templates.
+    def _format_examples(self, examples: List[Tuple[float, Dict]]) -> str:
+        """Format similar examples and their complete source files for prompt templates.
         
         Args:
-            examples: List of (score, content) tuples
+            examples: List of (score, content) tuples with full file contents
             
         Returns:
             Formatted examples string
@@ -531,21 +541,20 @@ Review Results:"""
         if not examples:
             return "No similar examples found."
             
-        sections = ["Similar SQL examples found:"]
+        sections = ["Complete SQL context from relevant files:"]
+        
         for i, (score, content) in enumerate(examples, 1):
             if isinstance(content, dict):
                 sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    f"Source: {content.get('source', 'Unknown')}",
-                    "SQL:",
-                    content.get('content', ''),
-                    "-" * 80  # Separator
-                ])
-            else:
-                sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    "SQL:",
-                    str(content),
+                    f"\nFile {i}: {content.get('source', 'Unknown')}",
+                    f"Most relevant section (Similarity: {score:.2f}):",
+                    "```sql",
+                    content.get('matching_content', ''),
+                    "```",
+                    "\nComplete file content:",
+                    "```sql",
+                    content.get('full_content', ''),
+                    "```",
                     "-" * 80  # Separator
                 ])
         
