@@ -41,6 +41,32 @@ class SQLAgentGradioApp:
 
         return sorted(list(columns))
         
+    def _format_sql(self, sql: str) -> str:
+        """Format SQL code for better readability."""
+        # Basic SQL formatting
+        keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 
+                   'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN',
+                   'CREATE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE',
+                   'AND', 'OR', 'UNION', 'UNION ALL', 'INTO']
+                   
+        # Add newlines before keywords
+        formatted = sql
+        for keyword in keywords:
+            formatted = re.sub(f'\\s+{keyword}\\s+', f'\n{keyword} ', formatted, flags=re.IGNORECASE)
+            
+        # Indent subqueries and parenthetical expressions
+        lines = formatted.split('\n')
+        indent = 0
+        result = []
+        for line in lines:
+            # Count opening and closing parentheses
+            indent += line.count('(') - line.count(')')
+            # Add appropriate indentation
+            if line.strip():
+                result.append('    ' * max(0, indent) + line.strip())
+            
+        return '\n'.join(result)
+        
     def _initialize_data(self) -> None:
         """Initialize data and vector store once at startup"""
         try:
@@ -117,20 +143,100 @@ class SQLAgentGradioApp:
                 
                 agent_interactions += "---\n\n"
             
-            # Format similar examples with clickable links
-            similar_examples = "## 📚 Similar Examples\n\n"
+            # Format similar examples with clickable links and improved SQL formatting
+            similar_examples = """## 📚 Similar Examples
+
+<style>
+.sql-example {
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.sql-header {
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sql-content {
+    padding: 15px;
+    background: white;
+    max-height: 500px;
+    overflow: auto;
+}
+.sql-section {
+    margin-bottom: 15px;
+}
+.sql-section-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #666;
+}
+.sql-code {
+    white-space: pre;
+    font-family: 'Consolas', monospace;
+    tab-size: 4;
+}
+.similarity-score {
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+}
+</style>
+"""
             if results.similarity_search:
                 for i, (score, example) in enumerate(results.similarity_search, 1):
-                    similar_examples += f"### Example {i} (Similarity: {score:.2f})\n\n"
                     if isinstance(example, dict):
                         source = example.get('source', 'Unknown')
-                        similar_examples += f"**Source:** <a href='file://{source}' target='_blank'>{source}</a>\n\n"
-                        similar_examples += "**Matching Content:**\n```sql\n"
-                        similar_examples += f"{example.get('matching_content', '')}\n```\n\n"
-                        similar_examples += "**Complete File Content:**\n```sql\n"
-                        similar_examples += f"{example.get('full_content', '')}\n```\n\n"
+                        # Format SQL for better readability
+                        matching_content = self._format_sql(example.get('matching_content', ''))
+                        full_content = self._format_sql(example.get('full_content', ''))
+                        
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-section">
+            <div class="sql-section-title">📁 Source: <a href='file://{source}' target='_blank'>{source}</a></div>
+        </div>
+        <div class="sql-section">
+            <div class="sql-section-title">🎯 Matching Content:</div>
+            <div class="sql-code">```sql
+{matching_content}
+```</div>
+        </div>
+        <details>
+            <summary>📑 View Complete File</summary>
+            <div class="sql-section">
+                <div class="sql-code">```sql
+{full_content}
+```</div>
+            </div>
+        </details>
+    </div>
+</div>
+"""
                     else:
-                        similar_examples += f"```sql\n{str(example)}\n```\n\n"
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-code">```sql
+{self._format_sql(str(example))}
+```</div>
+    </div>
+</div>
+"""
             
             # Format explanation
             explanation = "## 🎯 Query Analysis\n\n"
