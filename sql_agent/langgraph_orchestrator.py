@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import streamlit as st
 from pathlib import Path
 import json
+import tiktoken
 from sql_agent.utils.decorators import prevent_rerun
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -58,10 +59,12 @@ class SQLAgentOrchestrator:
         self.temperature = temperature
         self.similarity_threshold = similarity_threshold
         self.max_examples = max_examples
+        self.max_tokens = max_tokens
         
         self.metadata = None
         self.vector_store = None
         self.usage_stats = UsageStats()
+        self.tokenizer = tiktoken.encoding_for_model(model_name)
         
         self._setup_components()
         self._setup_logging()
@@ -535,6 +538,10 @@ Review Results:"""
         
         return "\n".join(sections)
     
+    def _count_tokens(self, text: str) -> int:
+        """Count the number of tokens in a text string."""
+        return len(self.tokenizer.encode(text))
+        
     def _format_examples(self, examples: List[Tuple[float, Dict]]) -> str:
         """Format similar examples and their complete source files for prompt templates.
         
@@ -542,16 +549,18 @@ Review Results:"""
             examples: List of (score, content) tuples with full file contents
             
         Returns:
-            Formatted examples string
+            Formatted examples string truncated to fit token limit
         """
         if not examples:
             return "No similar examples found."
             
         sections = ["Complete SQL context from relevant files:"]
+        total_tokens = self._count_tokens("\n".join(sections))
         
         for i, (score, content) in enumerate(examples, 1):
             if isinstance(content, dict):
-                sections.extend([
+                # Format the current example
+                new_sections = [
                     f"\nFile {i}: {content.get('source', 'Unknown')}",
                     f"Most relevant section (Similarity: {score:.2f}):",
                     "```sql",
@@ -562,7 +571,16 @@ Review Results:"""
                     content.get('full_content', ''),
                     "```",
                     "-" * 80  # Separator
-                ])
+                ]
+                
+                # Check if adding this example would exceed token limit
+                example_tokens = self._count_tokens("\n".join(new_sections))
+                if total_tokens + example_tokens > self.max_tokens:
+                    logger.warning(f"Truncating examples at {i} to stay within token limit")
+                    break
+                    
+                sections.extend(new_sections)
+                total_tokens += example_tokens
         
         return "\n".join(sections)
     
