@@ -611,21 +611,13 @@ Review Results:"""
     def _update_usage_stats(self, response) -> None:
         """Update usage statistics from LLM interactions."""
         try:
-            # Try different ways to get token usage
-            usage = None
-            
-            # Try getting from generation_info
-            if hasattr(response, 'generation_info'):
-                usage = response.generation_info.get('token_usage', {})
-            
-            # Try getting from response.usage directly
-            elif hasattr(response, 'usage'):
-                usage = response.usage
-            
-            # Try getting from AIMessage additional_kwargs
-            elif hasattr(response, 'additional_kwargs'):
-                usage = response.additional_kwargs.get('token_usage', {})
-            
+            # Get usage from LangChain AIMessage
+            if hasattr(response, 'llm_output') and isinstance(response.llm_output, dict):
+                usage = response.llm_output.get('token_usage', {})
+            else:
+                # Fallback to additional_kwargs for older LangChain versions
+                usage = getattr(response, 'additional_kwargs', {}).get('token_usage', {})
+
             if usage:
                 # Update token counts
                 self.usage_stats.prompt_tokens += int(usage.get('prompt_tokens', 0))
@@ -633,19 +625,27 @@ Review Results:"""
                 self.usage_stats.total_tokens = (
                     self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
                 )
-                
-                # Calculate approximate cost
-                prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
-                completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
-                
-                self.usage_stats.cost = (
-                    self.usage_stats.prompt_tokens * prompt_rate / 1000 +
-                    self.usage_stats.completion_tokens * completion_rate / 1000
-                )
-                
+
+                # Calculate cost based on current OpenAI pricing
+                model_pricing = {
+                    "gpt-4": {"input": 0.03, "output": 0.06},
+                    "gpt-4-32k": {"input": 0.06, "output": 0.12},
+                    "gpt-3.5-turbo": {"input": 0.0015, "output": 0.002},
+                    "gpt-3.5-turbo-16k": {"input": 0.003, "output": 0.004}
+                }
+
+                # Get pricing for the current model
+                pricing = model_pricing.get(self.model_name, model_pricing["gpt-3.5-turbo"])
+
+                # Calculate cost per 1000 tokens
+                prompt_cost = (self.usage_stats.prompt_tokens * pricing["input"]) / 1000
+                completion_cost = (self.usage_stats.completion_tokens * pricing["output"]) / 1000
+                self.usage_stats.cost += prompt_cost + completion_cost
+
                 logger.info(f"Updated usage stats - Prompt: {self.usage_stats.prompt_tokens}, "
                           f"Completion: {self.usage_stats.completion_tokens}, "
-                          f"Total: {self.usage_stats.total_tokens}")
+                          f"Total: {self.usage_stats.total_tokens}, "
+                          f"Cost: ${self.usage_stats.cost:.4f}")
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
