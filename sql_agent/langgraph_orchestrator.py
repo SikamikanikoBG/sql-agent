@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import streamlit as st
 from pathlib import Path
 import json
+import tiktoken
 from sql_agent.utils.decorators import prevent_rerun
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -43,8 +44,9 @@ class SQLAgentOrchestrator:
         self,
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
-        similarity_threshold: float = 0.3,  # Lower threshold to get more matches
-        max_examples: int = 10  # Increase number of examples
+        similarity_threshold: float = 0.01,  # Very low threshold to catch more potential matches
+        max_examples: int = 25,  # Significantly more examples for richer context
+        max_tokens: int = 14000  # Safe limit below model's context length
     ):
         """Initialize the SQL Agent Orchestrator.
         
@@ -58,10 +60,12 @@ class SQLAgentOrchestrator:
         self.temperature = temperature
         self.similarity_threshold = similarity_threshold
         self.max_examples = max_examples
+        self.max_tokens = max_tokens
         
         self.metadata = None
         self.vector_store = None
         self.usage_stats = UsageStats()
+        self.tokenizer = tiktoken.encoding_for_model(model_name)
         
         self._setup_components()
         self._setup_logging()
@@ -79,9 +83,9 @@ class SQLAgentOrchestrator:
         
         # Initialize text splitter for SQL
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1500,  # Larger chunks to maintain SQL statement context
-            chunk_overlap=300,  # More overlap to avoid breaking statements
-            separators=[";", "\nGO\n", "\nBEGIN\n", "\nEND\n", "\n\n", "\n", " "],  # SQL-specific separators
+            chunk_size=8000,  # Much larger chunks to maintain full query context
+            chunk_overlap=2000,  # Larger overlap to ensure we don't miss context
+            separators=["\nGO\n", ";\n\n", ";\n", ";", "\nBEGIN\n", "\nEND\n", "\n\n"],  # Prioritize keeping statements together
             length_function=len
         )
         
@@ -127,7 +131,8 @@ Intent Analysis:"""
         # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
             input_variables=["intent", "metadata", "similar_examples"],
-            template="""Generate a MS SQL query based on the analyzed intent and similar examples:
+            template="""Generate a complete MS SQL query solution based on the analyzed intent and similar examples.
+Pay special attention to temporary tables and their dependencies.
 
 {similar_examples}
 
@@ -136,42 +141,47 @@ Analyzed Intent:
 
 Follow these steps to generate the query:
 
-1. Pattern Matching:
-   - Find the most similar example query pattern that matches the intent
-   - Note how it handles similar requirements (joins, aggregations, etc.)
-   - Copy its overall structure while adapting to current needs
+1. Analyze Required Temporary Tables:
+   - Identify ALL temporary tables needed from the examples
+   - Find their complete creation logic in the example files
+   - Understand dependencies between temporary tables
+   - Copy the EXACT creation sequence from examples
 
-2. Table Selection:
-   - Use ONLY tables identified in the intent analysis
-   - Copy exact table names and schema prefixes from examples
-   - Maintain NOLOCK hints exactly as shown in examples
-   - Follow the same JOIN patterns for these tables
+2. Pattern Matching:
+   - Find the most similar example query patterns
+   - Note how temporary tables are created and used
+   - Understand the complete workflow from table creation to final query
 
-3. Column Selection:
-   - Use ONLY columns identified in the intent analysis
-   - Copy exact column names and any wrapping functions
-   - Maintain ISNULL/COALESCE patterns from examples
+3. Solution Construction:
+   - Start with ALL necessary temporary table creation statements
+   - Copy the EXACT creation logic from examples
+   - Maintain the correct order of temporary table creation
+   - Include ALL required INSERT/SELECT INTO statements
+   - Finally add the main query that uses these temp tables
+
+4. Table and Column Selection:
+   - Use ONLY tables and columns from examples
+   - Include ALL necessary temporary tables
+   - Maintain exact column names and data types
    - Follow example patterns for calculations
 
-4. Query Construction:
-   - Build SELECT clause using identified columns
-   - Copy JOIN syntax exactly from examples
-   - Use WHERE conditions matching example patterns
-   - Follow example patterns for:
-     * Date handling
-     * Aggregations
-     * GROUP BY/ORDER BY
-     * CTEs (only if examples use them)
-     * Transaction patterns
+5. Query Structure:
+   - Replicate the complete query structure from examples
+   - Include ALL temporary table creation steps
+   - Maintain transaction patterns if present
+   - Keep all NOLOCK hints and other optimization hints
 
-5. Validation:
-   - Verify every table/column exists in examples
-   - Check all joins match example patterns
-   - Ensure all functions appear in examples
-   - Validate against business requirements
+6. Validation:
+   - Verify ALL temporary tables are created in correct order
+   - Check ALL dependencies are satisfied
+   - Ensure the complete solution matches example patterns
+   - Validate final query uses correct temp table columns
 
-CRITICAL: Only generate a query if ALL required tables and columns are found in examples.
-If anything is missing, explain what's not available.
+CRITICAL:
+- Generate a COMPLETE solution including ALL temporary table creation
+- Follow the EXACT sequence of operations from examples
+- Include ALL necessary steps to make the query work
+- If anything is missing, explain what's not available
 
 Generated SQL Query:"""
         )
@@ -180,38 +190,44 @@ Generated SQL Query:"""
         # Query validation chain for MS SQL
         self.validation_prompt = PromptTemplate(
             input_variables=["query", "metadata", "similar_examples"],
-            template="""Strictly validate the following MS SQL query against the similar examples:
+            template="""Review the following MS SQL query and provide validation feedback:
 
-Similar Examples (ONLY valid source of tables/columns):
+Similar Examples (Reference patterns):
 {similar_examples}
 
-SQL Query to Validate:
+SQL Query to Review:
 {query}
 
-Validation Steps:
-1. Table Validation:
-   - Check each table exists in examples with exact same name and schema
-   - Verify table usage matches example patterns
-   - Flag any tables not found in examples
+Review Guidelines:
+1. Table Usage:
+   - Note which tables match example patterns exactly
+   - Identify tables with similar patterns but different names
+   - List any tables without clear precedent
 
-2. Column Validation:
-   - Verify each column exists in example queries
-   - Check column names match exactly (including case and brackets)
-   - Flag any columns not shown in examples
+2. Column Usage:
+   - Note columns that match examples exactly
+   - Identify columns with similar patterns/purposes
+   - List any columns without clear precedent
 
-3. Join Validation:
-   - Confirm JOIN syntax matches examples
-   - Verify NOLOCK hints match example usage
-   - Check JOIN conditions use valid columns
+3. Query Structure:
+   - Compare JOIN patterns with examples
+   - Check function usage against examples
+   - Review WHERE/GROUP BY/ORDER BY patterns
 
-4. Pattern Matching:
-   - Verify all functions used appear in examples
-   - Check WHERE clause patterns match examples
-   - Validate GROUP BY/ORDER BY follows examples
+4. Confidence Assessment:
+   - High: Query follows example patterns closely
+   - Medium: Query uses similar patterns with some variations
+   - Low: Query deviates significantly from examples
 
-CRITICAL: The query is only valid if it uses EXCLUSIVELY tables and columns from the examples.
+Provide:
+1. Confidence level (High/Medium/Low)
+2. List of validated elements
+3. List of potential risks or uncertainties
+4. Suggestions for improvement
 
-Validation Results (include all issues found):"""
+Note: Generate warnings for uncertainties but allow query execution unless critical issues found.
+
+Review Results:"""
         )
         self.validation_chain = self.validation_prompt | self.llm
 
@@ -383,15 +399,15 @@ Validation Results (include all issues found):"""
                 error=str(e)
             ), self.usage_stats
             
-    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
-        """Find similar SQL examples from the vector store.
+    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, Dict]], List[float], List[List[float]]]:
+        """Find similar SQL examples and their complete source files.
         
         Args:
             query: The user's query to find similar examples for
             
         Returns:
             Tuple containing:
-            - List of (score, content) tuples
+            - List of (score, content) tuples with full file contents
             - Query vector
             - List of metadata vectors
         """
@@ -412,39 +428,49 @@ Validation Results (include all issues found):"""
                 logger.info(f"Metadata: {doc.metadata}")
                 
             # Convert L2 distance to cosine similarity (0-1 range)
-            # FAISS returns (Document, score) tuples
             max_distance = max(score for doc, score in results) if results else 1
             normalized_results = []
             for doc, score in results:
-                # Convert L2 distance to similarity score (0-1)
                 similarity = 1 - (score / max_distance)
                 normalized_results.append((similarity, doc))
-                logger.info(f"Original L2 distance: {score}, Normalized similarity: {similarity}")
-            
-            logger.info("Normalized similarity scores:")
-            for score, doc in normalized_results:
-                logger.info(f"Normalized score: {score}")
             
             # Get embeddings
             query_vector = self.embeddings.embed_query(query)
             metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
             
+            # Track processed files to avoid duplicates
+            processed_files = set()
             similar_examples = []
+            
             for similarity, doc in normalized_results:
-                logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
-                # Include examples that meet the threshold
                 if similarity >= self.similarity_threshold:
                     try:
-                        example = {
-                            'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
-                            'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
-                        }
-                        similar_examples.append((similarity, example))
-                        logger.info(f"Added example with similarity {similarity}")
+                        source_file = doc.metadata.get('source', 'Unknown')
+                        
+                        # Only process each source file once
+                        if source_file not in processed_files and source_file != 'Unknown':
+                            processed_files.add(source_file)
+                            
+                            # Read the complete source file
+                            try:
+                                with open(source_file, 'r', encoding='utf-8') as f:
+                                    full_content = f.read()
+                            except UnicodeDecodeError:
+                                with open(source_file, 'r', encoding='latin1') as f:
+                                    full_content = f.read()
+                            
+                            # Create example with both the matching part and full file
+                            example = {
+                                'matching_content': doc.page_content,
+                                'full_content': full_content,
+                                'source': source_file,
+                                'matching_score': similarity
+                            }
+                            similar_examples.append((similarity, example))
+                            logger.info(f"Added full file content from {source_file}")
+                            
                     except Exception as e:
                         logger.error(f"Error processing document: {str(e)}")
-                else:
-                    logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
             
             return similar_examples, query_vector, metadata_vectors
             
@@ -513,35 +539,49 @@ Validation Results (include all issues found):"""
         
         return "\n".join(sections)
     
-    def _format_examples(self, examples: List[Tuple[float, str]]) -> str:
-        """Format similar examples for prompt templates.
+    def _count_tokens(self, text: str) -> int:
+        """Count the number of tokens in a text string."""
+        return len(self.tokenizer.encode(text))
+        
+    def _format_examples(self, examples: List[Tuple[float, Dict]]) -> str:
+        """Format similar examples and their complete source files for prompt templates.
         
         Args:
-            examples: List of (score, content) tuples
+            examples: List of (score, content) tuples with full file contents
             
         Returns:
-            Formatted examples string
+            Formatted examples string truncated to fit token limit
         """
         if not examples:
             return "No similar examples found."
             
-        sections = ["Similar SQL examples found:"]
+        sections = ["Complete SQL context from relevant files:"]
+        total_tokens = self._count_tokens("\n".join(sections))
+        
         for i, (score, content) in enumerate(examples, 1):
             if isinstance(content, dict):
-                sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    f"Source: {content.get('source', 'Unknown')}",
-                    "SQL:",
-                    content.get('content', ''),
+                # Format the current example
+                new_sections = [
+                    f"\nFile {i}: {content.get('source', 'Unknown')}",
+                    f"Most relevant section (Similarity: {score:.2f}):",
+                    "```sql",
+                    content.get('matching_content', ''),
+                    "```",
+                    "\nComplete file content:",
+                    "```sql",
+                    content.get('full_content', ''),
+                    "```",
                     "-" * 80  # Separator
-                ])
-            else:
-                sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    "SQL:",
-                    str(content),
-                    "-" * 80  # Separator
-                ])
+                ]
+                
+                # Check if adding this example would exceed token limit
+                example_tokens = self._count_tokens("\n".join(new_sections))
+                if total_tokens + example_tokens > self.max_tokens:
+                    logger.warning(f"Truncating examples at {i} to stay within token limit")
+                    break
+                    
+                sections.extend(new_sections)
+                total_tokens += example_tokens
         
         return "\n".join(sections)
     
@@ -621,17 +661,31 @@ Validation Results (include all issues found):"""
         
         for file_path in sql_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    
-                    # First split by major SQL statements
-                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
-                    
-                    # Initialize cleaned_stmt at the start
-                    cleaned_stmt = ""
-                    
-                    for i in range(1, len(statements), 2):
-                        try:
+                # Try different encodings
+                encodings = ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']
+                content = None
+                
+                for encoding in encodings:
+                    try:
+                        with open(file_path, 'r', encoding=encoding) as f:
+                            content = f.read()
+                            logger.debug(f"Successfully read file with {encoding} encoding")
+                            break
+                    except UnicodeDecodeError:
+                        logger.debug(f"Failed to read with {encoding} encoding")
+                        continue
+                
+                if content is None:
+                    raise ValueError(f"Could not read file {file_path} with any supported encoding")
+                
+                # First split by major SQL statements
+                statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
+                
+                # Initialize cleaned_stmt at the start
+                cleaned_stmt = ""
+                
+                for i in range(1, len(statements), 2):
+                    try:
                             if i+1 < len(statements):
                                 # Extract the main SQL operation type first
                                 operation_type = statements[i].strip().upper()
@@ -641,17 +695,27 @@ Validation Results (include all issues found):"""
                                 
                                 # Only store non-trivial SQL statements
                                 if len(full_stmt.split()) > 10:  # Meaningful statements
-                                    # Clean and normalize the statement
-                                    cleaned_stmt = ' '.join(full_stmt.split())
+                                    # Get surrounding context (previous statement if exists)
+                                    start_idx = max(0, i-2)  # Go back 2 statements
+                                    context_before = ' '.join(statements[start_idx:i]).strip()
                                     
-                                    # Store both the full statement and key parts
+                                    # Include next statement for context if exists
+                                    end_idx = min(len(statements), i+3)  # Include next statement
+                                    context_after = ' '.join(statements[i+2:end_idx]).strip()
+                                    
+                                    # Combine with context
+                                    full_context = f"{context_before}\n{full_stmt}\n{context_after}".strip()
+                                    cleaned_stmt = ' '.join(full_context.split())
+                                    
+                                    # Store with context
                                     texts.append(cleaned_stmt)
                                     metadatas.append({
                                         "source": file_path,
                                         "content": cleaned_stmt,
                                         "type": "sql_statement",
                                         "operation": operation_type,
-                                        "size": len(cleaned_stmt)
+                                        "size": len(cleaned_stmt),
+                                        "has_context": True
                                     })
                                     
                                     # For SELECT statements, also store the column list separately
@@ -668,10 +732,10 @@ Validation Results (include all issues found):"""
                                             })
                                     
                                     logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
-                        except Exception as e:
-                            logger.error(f"Error processing statement in {file_path}: {str(e)}")
-                            continue
-                            
+                    except Exception as e:
+                        logger.error(f"Error processing statement in {file_path}: {str(e)}")
+                        continue
+                        
             except Exception as e:
                 logger.error(f"Error processing file {file_path}: {str(e)}")
         
@@ -768,15 +832,30 @@ Validation Results (include all issues found):"""
             
             for file in files:
                 try:
-                    with open(file, 'r', encoding='utf-8') as f:
-                        sql_content = f.read()
-                        file_metadata = self.extract_metadata(sql_content)
-                        
-                        # Merge permanent tables
-                        self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
-                        
-                        # Merge temp tables with their source tables
-                        for temp_name, temp_info in file_metadata["temp_tables"].items():
+                    # Try different encodings
+                    encodings = ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']
+                    sql_content = None
+            
+                    for encoding in encodings:
+                        try:
+                            with open(file, 'r', encoding=encoding) as f:
+                                sql_content = f.read()
+                                logger.debug(f"Successfully read file with {encoding} encoding")
+                                break
+                        except UnicodeDecodeError:
+                            logger.debug(f"Failed to read with {encoding} encoding")
+                            continue
+            
+                    if sql_content is None:
+                        raise ValueError(f"Could not read file {file} with any supported encoding")
+                
+                    file_metadata = self.extract_metadata(sql_content)
+                    
+                    # Merge permanent tables
+                    self.metadata["permanent_tables"].extend(file_metadata["permanent_tables"])
+                    
+                    # Merge temp tables with their source tables
+                    for temp_name, temp_info in file_metadata["temp_tables"].items():
                             if temp_name not in self.metadata["temp_tables"]:
                                 self.metadata["temp_tables"][temp_name] = temp_info
                             else:
@@ -784,15 +863,15 @@ Validation Results (include all issues found):"""
                                 existing_sources = set(self.metadata["temp_tables"][temp_name]["source_tables"])
                                 new_sources = set(temp_info["source_tables"])
                                 self.metadata["temp_tables"][temp_name]["source_tables"] = list(existing_sources | new_sources)
-                        
-                        # Merge table variables
-                        self.metadata["table_variables"].update(file_metadata["table_variables"])
-                        
-                        # Merge CTEs
-                        self.metadata["ctes"].update(file_metadata["ctes"])
-                        
-                        # Store file-specific metadata
-                        self.metadata[file] = file_metadata
+                    
+                    # Merge table variables
+                    self.metadata["table_variables"].update(file_metadata["table_variables"])
+                    
+                    # Merge CTEs
+                    self.metadata["ctes"].update(file_metadata["ctes"])
+                    
+                    # Store file-specific metadata
+                    self.metadata[file] = file_metadata
                 except Exception as e:
                     logger.error(f"Error processing file {file}: {str(e)}", exc_info=True)
                     

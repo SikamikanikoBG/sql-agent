@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import gradio as gr
 from pathlib import Path
@@ -41,6 +42,32 @@ class SQLAgentGradioApp:
 
         return sorted(list(columns))
         
+    def _format_sql(self, sql: str) -> str:
+        """Format SQL code for better readability."""
+        # Basic SQL formatting
+        keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 
+                   'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN',
+                   'CREATE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE',
+                   'AND', 'OR', 'UNION', 'UNION ALL', 'INTO']
+                   
+        # Add newlines before keywords
+        formatted = sql
+        for keyword in keywords:
+            formatted = re.sub(f'\\s+{keyword}\\s+', f'\n{keyword} ', formatted, flags=re.IGNORECASE)
+            
+        # Indent subqueries and parenthetical expressions
+        lines = formatted.split('\n')
+        indent = 0
+        result = []
+        for line in lines:
+            # Count opening and closing parentheses
+            indent += line.count('(') - line.count(')')
+            # Add appropriate indentation
+            if line.strip():
+                result.append('    ' * max(0, indent) + line.strip())
+            
+        return '\n'.join(result)
+        
     def _initialize_data(self) -> None:
         """Initialize data and vector store once at startup"""
         try:
@@ -50,10 +77,10 @@ class SQLAgentGradioApp:
             # Create data folder if it doesn't exist
             data_path.mkdir(parents=True, exist_ok=True)
             
-            sql_files = list(data_path.glob("*.sql"))
+            sql_files = list(data_path.rglob("*.sql"))
             if not sql_files:
-                logger.warning(f"No SQL files found in {data_path}")
-                return "⚠️ No SQL files found in data folder. Please add .sql files to continue."
+                logger.warning(f"No SQL files found in {data_path} or its subdirectories")
+                return "⚠️ No SQL files found in data folder or subdirectories. Please add .sql files to continue."
                 
             # Extract metadata and initialize vector store once
             self.metadata = self.metadata_extractor.extract_metadata_from_sql_files(
@@ -117,16 +144,100 @@ class SQLAgentGradioApp:
                 
                 agent_interactions += "---\n\n"
             
-            # Format similar examples
-            similar_examples = "## 📚 Similar Examples\n\n"
+            # Format similar examples with clickable links and improved SQL formatting
+            similar_examples = """## 📚 Similar Examples
+
+<style>
+.sql-example {
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.sql-header {
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sql-content {
+    padding: 15px;
+    background: white;
+    max-height: 500px;
+    overflow: auto;
+}
+.sql-section {
+    margin-bottom: 15px;
+}
+.sql-section-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #666;
+}
+.sql-code {
+    white-space: pre;
+    font-family: 'Consolas', monospace;
+    tab-size: 4;
+}
+.similarity-score {
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+}
+</style>
+"""
             if results.similarity_search:
                 for i, (score, example) in enumerate(results.similarity_search, 1):
-                    similar_examples += f"### Example {i} (Similarity: {score:.2f})\n\n"
                     if isinstance(example, dict):
-                        similar_examples += f"**Source:** {example.get('source', 'Unknown')}\n\n"
-                        similar_examples += f"```sql\n{example.get('content', '')}\n```\n\n"
+                        source = example.get('source', 'Unknown')
+                        # Format SQL for better readability
+                        matching_content = self._format_sql(example.get('matching_content', ''))
+                        full_content = self._format_sql(example.get('full_content', ''))
+                        
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-section">
+            <div class="sql-section-title">📁 Source: <a href='file://{source}' target='_blank'>{source}</a></div>
+        </div>
+        <div class="sql-section">
+            <div class="sql-section-title">🎯 Matching Content:</div>
+            <div class="sql-code">```sql
+{matching_content}
+```</div>
+        </div>
+        <details>
+            <summary>📑 View Complete File</summary>
+            <div class="sql-section">
+                <div class="sql-code">```sql
+{full_content}
+```</div>
+            </div>
+        </details>
+    </div>
+</div>
+"""
                     else:
-                        similar_examples += f"```sql\n{str(example)}\n```\n\n"
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-code">```sql
+{self._format_sql(str(example))}
+```</div>
+    </div>
+</div>
+"""
             
             # Format explanation
             explanation = "## 🎯 Query Analysis\n\n"
@@ -205,7 +316,7 @@ def create_gradio_interface():
                     value=os.getenv('OPENAI_API_KEY', '')
                 )
                 model = gr.Dropdown(
-                    choices=["gpt-3.5-turbo", "gpt-4"],
+                    choices=["gpt-4o-mini", "gpt-3.5-turbo", "gpt-4"],
                     value="gpt-3.5-turbo",
                     label="Model"
                 )
@@ -219,7 +330,7 @@ def create_gradio_interface():
                 similarity_threshold = gr.Slider(
                     minimum=0.01,
                     maximum=1.0,
-                    value=0.3,
+                    value=0.06,
                     step=0.05,
                     label="Similarity Threshold"
                 )
