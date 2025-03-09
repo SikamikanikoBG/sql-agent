@@ -127,7 +127,8 @@ Intent Analysis:"""
         # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
             input_variables=["intent", "metadata", "similar_examples"],
-            template="""Generate a MS SQL query based on the analyzed intent and similar examples:
+            template="""Generate a complete MS SQL query solution based on the analyzed intent and similar examples.
+Pay special attention to temporary tables and their dependencies.
 
 {similar_examples}
 
@@ -136,42 +137,47 @@ Analyzed Intent:
 
 Follow these steps to generate the query:
 
-1. Pattern Matching:
-   - Find the most similar example query pattern that matches the intent
-   - Note how it handles similar requirements (joins, aggregations, etc.)
-   - Copy its overall structure while adapting to current needs
+1. Analyze Required Temporary Tables:
+   - Identify ALL temporary tables needed from the examples
+   - Find their complete creation logic in the example files
+   - Understand dependencies between temporary tables
+   - Copy the EXACT creation sequence from examples
 
-2. Table Selection:
-   - Use ONLY tables identified in the intent analysis
-   - Copy exact table names and schema prefixes from examples
-   - Maintain NOLOCK hints exactly as shown in examples
-   - Follow the same JOIN patterns for these tables
+2. Pattern Matching:
+   - Find the most similar example query patterns
+   - Note how temporary tables are created and used
+   - Understand the complete workflow from table creation to final query
 
-3. Column Selection:
-   - Use ONLY columns identified in the intent analysis
-   - Copy exact column names and any wrapping functions
-   - Maintain ISNULL/COALESCE patterns from examples
+3. Solution Construction:
+   - Start with ALL necessary temporary table creation statements
+   - Copy the EXACT creation logic from examples
+   - Maintain the correct order of temporary table creation
+   - Include ALL required INSERT/SELECT INTO statements
+   - Finally add the main query that uses these temp tables
+
+4. Table and Column Selection:
+   - Use ONLY tables and columns from examples
+   - Include ALL necessary temporary tables
+   - Maintain exact column names and data types
    - Follow example patterns for calculations
 
-4. Query Construction:
-   - Build SELECT clause using identified columns
-   - Copy JOIN syntax exactly from examples
-   - Use WHERE conditions matching example patterns
-   - Follow example patterns for:
-     * Date handling
-     * Aggregations
-     * GROUP BY/ORDER BY
-     * CTEs (only if examples use them)
-     * Transaction patterns
+5. Query Structure:
+   - Replicate the complete query structure from examples
+   - Include ALL temporary table creation steps
+   - Maintain transaction patterns if present
+   - Keep all NOLOCK hints and other optimization hints
 
-5. Validation:
-   - Verify every table/column exists in examples
-   - Check all joins match example patterns
-   - Ensure all functions appear in examples
-   - Validate against business requirements
+6. Validation:
+   - Verify ALL temporary tables are created in correct order
+   - Check ALL dependencies are satisfied
+   - Ensure the complete solution matches example patterns
+   - Validate final query uses correct temp table columns
 
-CRITICAL: Only generate a query if ALL required tables and columns are found in examples.
-If anything is missing, explain what's not available.
+CRITICAL:
+- Generate a COMPLETE solution including ALL temporary table creation
+- Follow the EXACT sequence of operations from examples
+- Include ALL necessary steps to make the query work
+- If anything is missing, explain what's not available
 
 Generated SQL Query:"""
         )

@@ -117,14 +117,18 @@ class SQLAgentGradioApp:
                 
                 agent_interactions += "---\n\n"
             
-            # Format similar examples
+            # Format similar examples with clickable links
             similar_examples = "## 📚 Similar Examples\n\n"
             if results.similarity_search:
                 for i, (score, example) in enumerate(results.similarity_search, 1):
                     similar_examples += f"### Example {i} (Similarity: {score:.2f})\n\n"
                     if isinstance(example, dict):
-                        similar_examples += f"**Source:** {example.get('source', 'Unknown')}\n\n"
-                        similar_examples += f"```sql\n{example.get('content', '')}\n```\n\n"
+                        source = example.get('source', 'Unknown')
+                        similar_examples += f"**Source:** <a href='file://{source}' target='_blank'>{source}</a>\n\n"
+                        similar_examples += "**Matching Content:**\n```sql\n"
+                        similar_examples += f"{example.get('matching_content', '')}\n```\n\n"
+                        similar_examples += "**Complete File Content:**\n```sql\n"
+                        similar_examples += f"{example.get('full_content', '')}\n```\n\n"
                     else:
                         similar_examples += f"```sql\n{str(example)}\n```\n\n"
             
