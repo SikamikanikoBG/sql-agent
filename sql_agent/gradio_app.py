@@ -209,7 +209,7 @@ def create_gradio_interface():
                     value=os.getenv('OPENAI_API_KEY', '')
                 )
                 model = gr.Dropdown(
-                    choices=["gpt-3.5-turbo", "gpt-4"],
+                    choices=["gpt-4o-mini", "gpt-3.5-turbo", "gpt-4"],
                     value="gpt-3.5-turbo",
                     label="Model"
                 )
@@ -223,7 +223,7 @@ def create_gradio_interface():
                 similarity_threshold = gr.Slider(
                     minimum=0.01,
                     maximum=1.0,
-                    value=0.3,
+                    value=0.06,
                     step=0.05,
                     label="Similarity Threshold"
                 )
