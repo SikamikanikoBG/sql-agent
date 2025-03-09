@@ -1,6 +1,6 @@
-# SQL Agent
+# SQL Agent v1.0.0 🚀
 
-An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language, leveraging RAG (Retrieval Augmented Generation) for context-aware query generation.
+An AI-powered SQL query generation and analysis tool that helps you write MS SQL Server queries using natural language, leveraging RAG (Retrieval Augmented Generation) for context-aware query generation. Now a production-ready stable release!
 
 ## Features
 
