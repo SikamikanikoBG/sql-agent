@@ -252,7 +252,7 @@ class SQLAgentGradioApp:
             
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}")
-            return f"❌ Error: {str(e)}", "", "", ""
+            return f"❌ Error: {str(e)}", "", "", "", ""
 
 def create_gradio_interface():
     """Create and configure the Gradio interface"""
