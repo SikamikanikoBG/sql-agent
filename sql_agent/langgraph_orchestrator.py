@@ -1,11 +1,11 @@
 import re
-from typing import List, Dict, Any, Tuple, Optional, Set
-from sql_agent.utils.dependency_resolver import TempTableDependencyResolver
+from typing import List, Dict, Any, Tuple, Optional
 import logging
 from dataclasses import dataclass
 import streamlit as st
 from pathlib import Path
 import json
+import tiktoken
 from sql_agent.utils.decorators import prevent_rerun
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -45,9 +45,9 @@ class SQLAgentOrchestrator:
         model_name: str = "gpt-3.5-turbo",
         temperature: float = 0.0,
         similarity_threshold: float = 0.01,  # Very low threshold to catch more potential matches
-        max_examples: int = 25  # Significantly more examples for richer context
+        max_examples: int = 25,  # Significantly more examples for richer context
+        max_tokens: int = 14000  # Safe limit below model's context length
     ):
-        self.temp_table_resolver = TempTableDependencyResolver()
         """Initialize the SQL Agent Orchestrator.
         
         Args:
@@ -60,10 +60,12 @@ class SQLAgentOrchestrator:
         self.temperature = temperature
         self.similarity_threshold = similarity_threshold
         self.max_examples = max_examples
+        self.max_tokens = max_tokens
         
         self.metadata = None
         self.vector_store = None
         self.usage_stats = UsageStats()
+        self.tokenizer = tiktoken.encoding_for_model(model_name)
         
         self._setup_components()
         self._setup_logging()
@@ -113,16 +115,12 @@ Important Rules:
 1. You MUST ONLY use tables and columns that appear in the example queries above
 2. Do not invent or assume any tables or columns that are not shown in the examples
 3. If required tables/columns are not found in examples, state this explicitly
-4. Pay special attention to temporary tables (#TableName) and their dependencies
 
 Please identify:
 1. Required tables (ONLY from examples above) and their relationships
-   - List permanent tables needed
-   - List temporary tables needed and their creation order
 2. Available columns from these tables that match the requirements
 3. Filters or conditions using only existing columns
 4. Sorting or grouping requirements using only existing columns
-5. Temporary table dependencies and creation sequence
 
 If any part of the query cannot be satisfied with the available tables/columns, explain what is missing.
 
@@ -132,14 +130,9 @@ Intent Analysis:"""
         
         # Query generation chain for MS SQL
         self.query_prompt = PromptTemplate(
-            input_variables=["intent", "metadata", "similar_examples", "temp_tables"],
+            input_variables=["intent", "metadata", "similar_examples"],
             template="""Generate a complete MS SQL query solution based on the analyzed intent and similar examples.
-
-First, here are the temporary table dependencies that need to be created:
-
-{temp_tables}
-
-Now, generate the complete solution including:
+Pay special attention to temporary tables and their dependencies.
 
 {similar_examples}
 
@@ -148,52 +141,46 @@ Analyzed Intent:
 
 Follow these steps to generate the query:
 
-1. Temporary Table Analysis:
-   - Review all temporary tables (#TableName) needed
-   - Ensure all temp table dependencies are included
-   - Follow the exact creation order from dependencies
-   - Copy temp table creation patterns from examples
+1. Analyze Required Temporary Tables:
+   - Identify ALL temporary tables needed from the examples
+   - Find their complete creation logic in the example files
+   - Understand dependencies between temporary tables
+   - Copy the EXACT creation sequence from examples
 
 2. Pattern Matching:
-   - Find the most similar example query pattern that matches the intent
-   - Note how it handles similar requirements (joins, aggregations, etc.)
-   - Copy its overall structure while adapting to current needs
+   - Find the most similar example query patterns
+   - Note how temporary tables are created and used
+   - Understand the complete workflow from table creation to final query
 
-3. Table Selection:
-   - Use ONLY tables identified in the intent analysis
-   - Include all required temporary tables in correct order
-   - Copy exact table names and schema prefixes from examples
-   - Maintain NOLOCK hints exactly as shown in examples
-   - Follow the same JOIN patterns for these tables
+3. Solution Construction:
+   - Start with ALL necessary temporary table creation statements
+   - Copy the EXACT creation logic from examples
+   - Maintain the correct order of temporary table creation
+   - Include ALL required INSERT/SELECT INTO statements
+   - Finally add the main query that uses these temp tables
 
-4. Column Selection:
-   - Use ONLY columns identified in the intent analysis
-   - Copy exact column names and any wrapping functions
-   - Maintain ISNULL/COALESCE patterns from examples
+4. Table and Column Selection:
+   - Use ONLY tables and columns from examples
+   - Include ALL necessary temporary tables
+   - Maintain exact column names and data types
    - Follow example patterns for calculations
 
-5. Query Construction:
-   - First output all required temp table creation statements
-   - Then build main query SELECT clause
-   - Copy JOIN syntax exactly from examples
-   - Use WHERE conditions matching example patterns
-   - Follow example patterns for:
-     * Date handling
-     * Aggregations
-     * GROUP BY/ORDER BY
-     * CTEs (only if examples use them)
-     * Transaction patterns
+5. Query Structure:
+   - Replicate the complete query structure from examples
+   - Include ALL temporary table creation steps
+   - Maintain transaction patterns if present
+   - Keep all NOLOCK hints and other optimization hints
 
 6. Validation:
-   - Verify every table/column exists in examples
-   - Check all joins match example patterns
-   - Ensure all functions appear in examples
-   - Validate temp table creation order
-   - Validate against business requirements
+   - Verify ALL temporary tables are created in correct order
+   - Check ALL dependencies are satisfied
+   - Ensure the complete solution matches example patterns
+   - Validate final query uses correct temp table columns
 
-CRITICAL: 
-- Only generate a query if ALL required tables and columns are found in examples
-- Ensure ALL temporary table dependencies are included in correct order
+CRITICAL:
+- Generate a COMPLETE solution including ALL temporary table creation
+- Follow the EXACT sequence of operations from examples
+- Include ALL necessary steps to make the query work
 - If anything is missing, explain what's not available
 
 Generated SQL Query:"""
@@ -327,23 +314,10 @@ Review Results:"""
             with st.spinner("✍️ Generating SQL query..."):
                 logger.info("Starting query generation...")
             try:
-                # First pass to identify temp tables
-                initial_result = self.query_chain.invoke({
-                    "intent": intent_result.content,
-                    "metadata": "",  # Empty metadata when we have examples
-                    "similar_examples": context,
-                    "temp_tables": ""  # Empty for first pass
-                })
-                
-                # Extract temp table dependencies
-                temp_tables_info = self._format_temp_table_dependencies(initial_result.content)
-                
-                # Second pass with temp table information
                 query_result = self.query_chain.invoke({
                     "intent": intent_result.content,
-                    "metadata": "",
-                    "similar_examples": context,
-                    "temp_tables": temp_tables_info
+                    "metadata": "",  # Empty metadata when we have examples
+                    "similar_examples": context
                 })
                 logger.info("Query generation completed")
                 self._update_usage_stats(query_result)
@@ -425,15 +399,15 @@ Review Results:"""
                 error=str(e)
             ), self.usage_stats
             
-    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, str]], List[float], List[List[float]]]:
-        """Find similar SQL examples from the vector store.
+    def _find_similar_examples(self, query: str) -> Tuple[List[Tuple[float, Dict]], List[float], List[List[float]]]:
+        """Find similar SQL examples and their complete source files.
         
         Args:
             query: The user's query to find similar examples for
             
         Returns:
             Tuple containing:
-            - List of (score, content) tuples
+            - List of (score, content) tuples with full file contents
             - Query vector
             - List of metadata vectors
         """
@@ -454,39 +428,49 @@ Review Results:"""
                 logger.info(f"Metadata: {doc.metadata}")
                 
             # Convert L2 distance to cosine similarity (0-1 range)
-            # FAISS returns (Document, score) tuples
             max_distance = max(score for doc, score in results) if results else 1
             normalized_results = []
             for doc, score in results:
-                # Convert L2 distance to similarity score (0-1)
                 similarity = 1 - (score / max_distance)
                 normalized_results.append((similarity, doc))
-                logger.info(f"Original L2 distance: {score}, Normalized similarity: {similarity}")
-            
-            logger.info("Normalized similarity scores:")
-            for score, doc in normalized_results:
-                logger.info(f"Normalized score: {score}")
             
             # Get embeddings
             query_vector = self.embeddings.embed_query(query)
             metadata_vectors = [self.embeddings.embed_query(doc.page_content) for doc, _ in results]
             
+            # Track processed files to avoid duplicates
+            processed_files = set()
             similar_examples = []
+            
             for similarity, doc in normalized_results:
-                logger.info(f"Checking similarity {similarity} against threshold {self.similarity_threshold}")
-                # Include examples that meet the threshold
                 if similarity >= self.similarity_threshold:
                     try:
-                        example = {
-                            'content': doc.page_content if hasattr(doc, 'page_content') else str(doc),
-                            'source': doc.metadata.get('source', 'Unknown') if hasattr(doc, 'metadata') else 'Unknown'
-                        }
-                        similar_examples.append((similarity, example))
-                        logger.info(f"Added example with similarity {similarity}")
+                        source_file = doc.metadata.get('source', 'Unknown')
+                        
+                        # Only process each source file once
+                        if source_file not in processed_files and source_file != 'Unknown':
+                            processed_files.add(source_file)
+                            
+                            # Read the complete source file
+                            try:
+                                with open(source_file, 'r', encoding='utf-8') as f:
+                                    full_content = f.read()
+                            except UnicodeDecodeError:
+                                with open(source_file, 'r', encoding='latin1') as f:
+                                    full_content = f.read()
+                            
+                            # Create example with both the matching part and full file
+                            example = {
+                                'matching_content': doc.page_content,
+                                'full_content': full_content,
+                                'source': source_file,
+                                'matching_score': similarity
+                            }
+                            similar_examples.append((similarity, example))
+                            logger.info(f"Added full file content from {source_file}")
+                            
                     except Exception as e:
                         logger.error(f"Error processing document: {str(e)}")
-                else:
-                    logger.info(f"Skipping example with similarity {similarity} below threshold {self.similarity_threshold}")
             
             return similar_examples, query_vector, metadata_vectors
             
@@ -555,35 +539,49 @@ Review Results:"""
         
         return "\n".join(sections)
     
-    def _format_examples(self, examples: List[Tuple[float, str]]) -> str:
-        """Format similar examples for prompt templates.
+    def _count_tokens(self, text: str) -> int:
+        """Count the number of tokens in a text string."""
+        return len(self.tokenizer.encode(text))
+        
+    def _format_examples(self, examples: List[Tuple[float, Dict]]) -> str:
+        """Format similar examples and their complete source files for prompt templates.
         
         Args:
-            examples: List of (score, content) tuples
+            examples: List of (score, content) tuples with full file contents
             
         Returns:
-            Formatted examples string
+            Formatted examples string truncated to fit token limit
         """
         if not examples:
             return "No similar examples found."
             
-        sections = ["Similar SQL examples found:"]
+        sections = ["Complete SQL context from relevant files:"]
+        total_tokens = self._count_tokens("\n".join(sections))
+        
         for i, (score, content) in enumerate(examples, 1):
             if isinstance(content, dict):
-                sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    f"Source: {content.get('source', 'Unknown')}",
-                    "SQL:",
-                    content.get('content', ''),
+                # Format the current example
+                new_sections = [
+                    f"\nFile {i}: {content.get('source', 'Unknown')}",
+                    f"Most relevant section (Similarity: {score:.2f}):",
+                    "```sql",
+                    content.get('matching_content', ''),
+                    "```",
+                    "\nComplete file content:",
+                    "```sql",
+                    content.get('full_content', ''),
+                    "```",
                     "-" * 80  # Separator
-                ])
-            else:
-                sections.extend([
-                    f"\nExample {i} (Similarity: {score:.2f}):",
-                    "SQL:",
-                    str(content),
-                    "-" * 80  # Separator
-                ])
+                ]
+                
+                # Check if adding this example would exceed token limit
+                example_tokens = self._count_tokens("\n".join(new_sections))
+                if total_tokens + example_tokens > self.max_tokens:
+                    logger.warning(f"Truncating examples at {i} to stay within token limit")
+                    break
+                    
+                sections.extend(new_sections)
+                total_tokens += example_tokens
         
         return "\n".join(sections)
     
@@ -613,21 +611,13 @@ Review Results:"""
     def _update_usage_stats(self, response) -> None:
         """Update usage statistics from LLM interactions."""
         try:
-            # Try different ways to get token usage
-            usage = None
-            
-            # Try getting from generation_info
-            if hasattr(response, 'generation_info'):
-                usage = response.generation_info.get('token_usage', {})
-            
-            # Try getting from response.usage directly
-            elif hasattr(response, 'usage'):
-                usage = response.usage
-            
-            # Try getting from AIMessage additional_kwargs
-            elif hasattr(response, 'additional_kwargs'):
-                usage = response.additional_kwargs.get('token_usage', {})
-            
+            # Get usage from LangChain AIMessage
+            if hasattr(response, 'llm_output') and isinstance(response.llm_output, dict):
+                usage = response.llm_output.get('token_usage', {})
+            else:
+                # Fallback to additional_kwargs for older LangChain versions
+                usage = getattr(response, 'additional_kwargs', {}).get('token_usage', {})
+
             if usage:
                 # Update token counts
                 self.usage_stats.prompt_tokens += int(usage.get('prompt_tokens', 0))
@@ -635,19 +625,27 @@ Review Results:"""
                 self.usage_stats.total_tokens = (
                     self.usage_stats.prompt_tokens + self.usage_stats.completion_tokens
                 )
-                
-                # Calculate approximate cost
-                prompt_rate = 0.0015 if "gpt-4" in self.model_name else 0.0005
-                completion_rate = 0.002 if "gpt-4" in self.model_name else 0.0005
-                
-                self.usage_stats.cost = (
-                    self.usage_stats.prompt_tokens * prompt_rate / 1000 +
-                    self.usage_stats.completion_tokens * completion_rate / 1000
-                )
-                
+
+                # Calculate cost based on current OpenAI pricing
+                model_pricing = {
+                    "gpt-4": {"input": 0.03, "output": 0.06},
+                    "gpt-4-32k": {"input": 0.06, "output": 0.12},
+                    "gpt-3.5-turbo": {"input": 0.0015, "output": 0.002},
+                    "gpt-3.5-turbo-16k": {"input": 0.003, "output": 0.004}
+                }
+
+                # Get pricing for the current model
+                pricing = model_pricing.get(self.model_name, model_pricing["gpt-3.5-turbo"])
+
+                # Calculate cost per 1000 tokens
+                prompt_cost = (self.usage_stats.prompt_tokens * pricing["input"]) / 1000
+                completion_cost = (self.usage_stats.completion_tokens * pricing["output"]) / 1000
+                self.usage_stats.cost += prompt_cost + completion_cost
+
                 logger.info(f"Updated usage stats - Prompt: {self.usage_stats.prompt_tokens}, "
                           f"Completion: {self.usage_stats.completion_tokens}, "
-                          f"Total: {self.usage_stats.total_tokens}")
+                          f"Total: {self.usage_stats.total_tokens}, "
+                          f"Cost: ${self.usage_stats.cost:.4f}")
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
@@ -719,41 +717,6 @@ Review Results:"""
                                         "size": len(cleaned_stmt),
                                         "has_context": True
                                     })
-                                    
-                                    # Track temp table definitions
-                                    if "#" in full_stmt:
-                                        # Look for CREATE TABLE statements
-                                        if operation_type == "CREATE":
-                                            temp_match = re.search(r'CREATE\s+TABLE\s+(#[\w]+)', full_stmt, re.IGNORECASE)
-                                            if temp_match:
-                                                temp_name = temp_match.group(1)
-                                                self.temp_table_resolver.add_temp_table(
-                                                    temp_name,
-                                                    full_stmt,
-                                                    file_path
-                                                )
-                                        # Also look for INSERT INTO temp tables
-                                        elif operation_type == "INSERT":
-                                            temp_match = re.search(r'INSERT\s+INTO\s+(#[\w]+)', full_stmt, re.IGNORECASE)
-                                            if temp_match:
-                                                temp_name = temp_match.group(1)
-                                                if temp_name not in self.temp_table_resolver.temp_tables:
-                                                    self.temp_table_resolver.add_temp_table(
-                                                        temp_name,
-                                                        full_stmt,
-                                                        file_path
-                                                    )
-                                        # And SELECT INTO temp tables
-                                        elif operation_type == "SELECT":
-                                            temp_match = re.search(r'SELECT\s+.*?\s+INTO\s+(#[\w]+)', full_stmt, re.IGNORECASE | re.DOTALL)
-                                            if temp_match:
-                                                temp_name = temp_match.group(1)
-                                                if temp_name not in self.temp_table_resolver.temp_tables:
-                                                    self.temp_table_resolver.add_temp_table(
-                                                        temp_name,
-                                                        full_stmt,
-                                                        file_path
-                                                    )
                                     
                                     # For SELECT statements, also store the column list separately
                                     if operation_type == "SELECT":
@@ -916,18 +879,3 @@ Review Results:"""
             self.metadata["tables"] = list(set(self.metadata["tables"]))
             
         return self.metadata
-    def _format_temp_table_dependencies(self, query: str) -> str:
-        """Format temp table dependencies for the prompt."""
-        dependencies = self.temp_table_resolver.get_all_dependencies(query)
-        if not dependencies:
-            return "No temporary tables required."
-            
-        formatted = ["Required temporary tables in creation order:"]
-        for i, dep in enumerate(dependencies, 1):
-            formatted.extend([
-                f"\n{i}. {dep['table']}",
-                "```sql",
-                dep['definition'].strip(),
-                "```\n"
-            ])
-        return "\n".join(formatted)

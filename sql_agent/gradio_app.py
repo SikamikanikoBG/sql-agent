@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import gradio as gr
 from pathlib import Path
@@ -7,7 +8,6 @@ import openai
 from sql_agent.langgraph_orchestrator import SQLAgentOrchestrator
 from sql_agent.metadata_extractor import MetadataExtractor
 from sql_agent.visualization import SimilaritySearchResultPlot
-from sql_agent.utils.dependency_visualizer import DependencyVisualizer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,9 +19,8 @@ class SQLAgentGradioApp:
     def __init__(self):
         self.metadata_extractor = MetadataExtractor()
         self.metadata = None
-        # Initialize components
+        # Initialize agent and vector store once at startup
         self.agent = SQLAgentOrchestrator()
-        self.dependency_visualizer = DependencyVisualizer()
         self._initialize_data()
 
     def _get_available_columns(self) -> List[str]:
@@ -42,6 +41,32 @@ class SQLAgentGradioApp:
                             columns.add(clean_col)
 
         return sorted(list(columns))
+        
+    def _format_sql(self, sql: str) -> str:
+        """Format SQL code for better readability."""
+        # Basic SQL formatting
+        keywords = ['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY', 'HAVING', 
+                   'JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN',
+                   'CREATE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE',
+                   'AND', 'OR', 'UNION', 'UNION ALL', 'INTO']
+                   
+        # Add newlines before keywords
+        formatted = sql
+        for keyword in keywords:
+            formatted = re.sub(f'\\s+{keyword}\\s+', f'\n{keyword} ', formatted, flags=re.IGNORECASE)
+            
+        # Indent subqueries and parenthetical expressions
+        lines = formatted.split('\n')
+        indent = 0
+        result = []
+        for line in lines:
+            # Count opening and closing parentheses
+            indent += line.count('(') - line.count(')')
+            # Add appropriate indentation
+            if line.strip():
+                result.append('    ' * max(0, indent) + line.strip())
+            
+        return '\n'.join(result)
         
     def _initialize_data(self) -> None:
         """Initialize data and vector store once at startup"""
@@ -71,7 +96,7 @@ class SQLAgentGradioApp:
             logger.error(f"Error initializing data: {str(e)}")
             return f"❌ Error initializing data: {str(e)}"
 
-    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float, max_examples: int) -> Tuple[str, str, str, str, str, str]:
+    def process_query(self, api_key: str, query: str, columns: List[str], model: str, temperature: float, similarity_threshold: float) -> Tuple[str, str, str, str, str]:
         """Process a query and return results"""
         if not api_key.strip():
             return "⚠️ API Key Required", "", "", "", ""
@@ -87,7 +112,6 @@ class SQLAgentGradioApp:
             self.agent.model_name = model
             self.agent.temperature = temperature
             self.agent.similarity_threshold = similarity_threshold
-            self.agent.max_examples = max_examples
             
             # Process query
             results, usage_stats = self.agent.process_query(query, self.metadata)
@@ -120,16 +144,100 @@ class SQLAgentGradioApp:
                 
                 agent_interactions += "---\n\n"
             
-            # Format similar examples
-            similar_examples = "## 📚 Similar Examples\n\n"
+            # Format similar examples with clickable links and improved SQL formatting
+            similar_examples = """## 📚 Similar Examples
+
+<style>
+.sql-example {
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.sql-header {
+    background: #f8f9fa;
+    padding: 8px 15px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.sql-content {
+    padding: 15px;
+    background: white;
+    max-height: 500px;
+    overflow: auto;
+}
+.sql-section {
+    margin-bottom: 15px;
+}
+.sql-section-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #666;
+}
+.sql-code {
+    white-space: pre;
+    font-family: 'Consolas', monospace;
+    tab-size: 4;
+}
+.similarity-score {
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+}
+</style>
+"""
             if results.similarity_search:
                 for i, (score, example) in enumerate(results.similarity_search, 1):
-                    similar_examples += f"### Example {i} (Similarity: {score:.2f})\n\n"
                     if isinstance(example, dict):
-                        similar_examples += f"**Source:** {example.get('source', 'Unknown')}\n\n"
-                        similar_examples += f"```sql\n{example.get('content', '')}\n```\n\n"
+                        source = example.get('source', 'Unknown')
+                        # Format SQL for better readability
+                        matching_content = self._format_sql(example.get('matching_content', ''))
+                        full_content = self._format_sql(example.get('full_content', ''))
+                        
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-section">
+            <div class="sql-section-title">📁 Source: <a href='file://{source}' target='_blank'>{source}</a></div>
+        </div>
+        <div class="sql-section">
+            <div class="sql-section-title">🎯 Matching Content:</div>
+            <div class="sql-code">```sql
+{matching_content}
+```</div>
+        </div>
+        <details>
+            <summary>📑 View Complete File</summary>
+            <div class="sql-section">
+                <div class="sql-code">```sql
+{full_content}
+```</div>
+            </div>
+        </details>
+    </div>
+</div>
+"""
                     else:
-                        similar_examples += f"```sql\n{str(example)}\n```\n\n"
+                        similar_examples += f"""
+<div class="sql-example">
+    <div class="sql-header">
+        <span>Example {i}</span>
+        <span class="similarity-score">Similarity: {score:.2f}</span>
+    </div>
+    <div class="sql-content">
+        <div class="sql-code">```sql
+{self._format_sql(str(example))}
+```</div>
+    </div>
+</div>
+"""
             
             # Format explanation
             explanation = "## 🎯 Query Analysis\n\n"
@@ -140,45 +248,11 @@ class SQLAgentGradioApp:
             usage_info += f"- **Total Tokens:** {usage_stats.total_tokens:,}\n"
             usage_info += f"- **Cost:** ${usage_stats.cost:.4f}\n"
             
-            # Generate dependency visualization
-            dependencies = self.agent.temp_table_resolver.get_all_dependencies(results.generated_query)
-            dependency_viz = self.dependency_visualizer.create_dependency_graph(dependencies)
-            
-            # Format prompt inspection details
-            prompt_inspection = "## 🔍 Prompt Details\n\n"
-            
-            # Add temp table dependencies
-            prompt_inspection += "### Temporary Table Dependencies\n"
-            prompt_inspection += "```\n"
-            prompt_inspection += self.agent._format_temp_table_dependencies(results.generated_query)
-            prompt_inspection += "\n```\n\n"
-            
-            # Add formatted examples used in prompts
-            prompt_inspection += "### Formatted Examples\n"
-            prompt_inspection += "```\n"
-            prompt_inspection += self.agent._format_examples(results.similarity_search)
-            prompt_inspection += "\n```\n\n"
-            
-            # Add metadata formatting
-            if self.metadata:
-                prompt_inspection += "### Formatted Metadata\n"
-                prompt_inspection += "```\n"
-                prompt_inspection += self.agent._format_metadata(self.metadata)
-                prompt_inspection += "\n```\n"
-            
-            return (
-                results.generated_query, 
-                explanation, 
-                similar_examples, 
-                usage_info, 
-                agent_interactions, 
-                dependency_viz,
-                prompt_inspection
-            )
+            return results.generated_query, explanation, similar_examples, usage_info, agent_interactions
             
         except Exception as e:
             logger.error(f"Error processing query: {str(e)}")
-            return f"❌ Error: {str(e)}", "", "", "", "", "No dependencies available due to error.", "Error occurred during prompt inspection"
+            return f"❌ Error: {str(e)}", "", "", "", ""
 
 def create_gradio_interface():
     """Create and configure the Gradio interface"""
@@ -242,7 +316,7 @@ def create_gradio_interface():
                     value=os.getenv('OPENAI_API_KEY', '')
                 )
                 model = gr.Dropdown(
-                    choices=["gpt-3.5-turbo", "gpt-4"],
+                    choices=["gpt-4o-mini", "gpt-3.5-turbo", "gpt-4"],
                     value="gpt-3.5-turbo",
                     label="Model"
                 )
@@ -256,17 +330,9 @@ def create_gradio_interface():
                 similarity_threshold = gr.Slider(
                     minimum=0.01,
                     maximum=1.0,
-                    value=0.01,
+                    value=0.06,
                     step=0.05,
                     label="Similarity Threshold"
-                )
-                max_examples = gr.Slider(
-                    minimum=5,
-                    maximum=50,
-                    value=25,
-                    step=5,
-                    label="Maximum Examples",
-                    info="Maximum number of similar examples to retrieve"
                 )
             
             with gr.Column(scale=2):
@@ -300,18 +366,12 @@ def create_gradio_interface():
             
             with gr.TabItem("🤖 Agent Interactions"):
                 agent_interactions_output = gr.Markdown(label="Interactions")
-                
-            with gr.TabItem("🔄 Dependencies"):
-                dependencies_output = gr.HTML(label="Temporary Table Dependencies", value="No dependencies found yet.")
-                
-            with gr.TabItem("🔍 Prompt Inspector"):
-                prompt_inspector_output = gr.Markdown(label="Prompt Details")
         
         # Set up event handler
         generate_btn.click(
             fn=app.process_query,
-            inputs=[api_key, query, columns, model, temperature, similarity_threshold, max_examples],
-            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output, dependencies_output, prompt_inspector_output]
+            inputs=[api_key, query, columns, model, temperature, similarity_threshold],
+            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
         )
         
         # Initialize app
