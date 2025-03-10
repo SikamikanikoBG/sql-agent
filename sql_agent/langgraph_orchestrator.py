@@ -6,6 +6,9 @@ import streamlit as st
 from pathlib import Path
 import json
 import tiktoken
+import os
+import hashlib
+from datetime import datetime
 from sql_agent.utils.decorators import prevent_rerun
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -46,7 +49,9 @@ class SQLAgentOrchestrator:
         temperature: float = 0.0,
         similarity_threshold: float = 0.01,  # Very low threshold to catch more potential matches
         max_examples: int = 25,  # Significantly more examples for richer context
-        max_tokens: int = 14000  # Safe limit below model's context length
+        max_tokens: int = 14000,  # Safe limit below model's context length
+        index_path: str = "data/faiss_index",
+        metadata_path: str = "data/index_metadata.json"
     ):
         """Initialize the SQL Agent Orchestrator.
         
@@ -61,6 +66,16 @@ class SQLAgentOrchestrator:
         self.similarity_threshold = similarity_threshold
         self.max_examples = max_examples
         self.max_tokens = max_tokens
+        
+        # Add index paths and metadata tracking
+        self.index_path = Path(index_path)
+        self.metadata_path = Path(metadata_path)
+        self.index_metadata = {
+            "last_updated": None,
+            "files_hash": None,
+            "indexed_files": [],
+            "total_chunks": 0
+        }
         
         self.metadata = None
         self.vector_store = None
@@ -649,103 +664,148 @@ Review Results:"""
         except Exception as e:
             logger.error(f"Error updating usage stats: {str(e)}")
     
+    def _get_files_hash(self, sql_files: List[str]) -> str:
+        """Generate a hash of the SQL files content and metadata to detect changes"""
+        content = []
+        for file in sorted(sql_files):
+            try:
+                file_path = Path(file)
+                if not file_path.exists():
+                    continue
+                    
+                # Include file metadata in hash
+                stats = file_path.stat()
+                file_meta = f"{file}:{stats.st_mtime}:{stats.st_size}"
+                content.append(file_meta)
+                
+            except Exception as e:
+                logger.warning(f"Error reading file {file}: {e}")
+                continue
+                
+        return hashlib.md5("|".join(content).encode()).hexdigest()
+
+    def _save_index_metadata(self) -> None:
+        """Save index metadata to disk"""
+        try:
+            self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.metadata_path, 'w') as f:
+                json.dump(self.index_metadata, f, default=str)
+            logger.info(f"Saved index metadata to {self.metadata_path}")
+        except Exception as e:
+            logger.error(f"Error saving index metadata: {e}")
+
+    def _load_index_metadata(self) -> bool:
+        """Load index metadata from disk"""
+        try:
+            if self.metadata_path.exists():
+                with open(self.metadata_path, 'r') as f:
+                    self.index_metadata = json.load(f)
+                logger.info(f"Loaded index metadata from {self.metadata_path}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error loading index metadata: {e}")
+            return False
+
     @prevent_rerun(timeout=60)
     def initialize_vector_store(self, sql_files: List[str]) -> None:
-        """Initialize the vector store with SQL examples.
-        
-        Args:
-            sql_files: List of SQL file paths
-        """
-        texts = []
-        metadatas = []
-        
-        for file_path in sql_files:
-            try:
-                # Try different encodings
-                encodings = ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']
-                content = None
-                
-                for encoding in encodings:
+        """Initialize or load the vector store with SQL examples."""
+        try:
+            # Create directories if they don't exist
+            self.index_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            current_hash = self._get_files_hash(sql_files)
+            
+            # Try to load existing index
+            if self.index_path.exists() and self._load_index_metadata():
+                if current_hash == self.index_metadata["files_hash"]:
                     try:
-                        with open(file_path, 'r', encoding=encoding) as f:
-                            content = f.read()
-                            logger.debug(f"Successfully read file with {encoding} encoding")
-                            break
-                    except UnicodeDecodeError:
-                        logger.debug(f"Failed to read with {encoding} encoding")
-                        continue
-                
-                if content is None:
-                    raise ValueError(f"Could not read file {file_path} with any supported encoding")
-                
-                # First split by major SQL statements
-                statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
-                
-                # Initialize cleaned_stmt at the start
-                cleaned_stmt = ""
-                
-                for i in range(1, len(statements), 2):
-                    try:
-                            if i+1 < len(statements):
-                                # Extract the main SQL operation type first
-                                operation_type = statements[i].strip().upper()
-                                
-                                # Combine keyword with its statement
-                                full_stmt = operation_type + " " + statements[i+1]
-                                
-                                # Only store non-trivial SQL statements
-                                if len(full_stmt.split()) > 10:  # Meaningful statements
-                                    # Get surrounding context (previous statement if exists)
-                                    start_idx = max(0, i-2)  # Go back 2 statements
-                                    context_before = ' '.join(statements[start_idx:i]).strip()
-                                    
-                                    # Include next statement for context if exists
-                                    end_idx = min(len(statements), i+3)  # Include next statement
-                                    context_after = ' '.join(statements[i+2:end_idx]).strip()
-                                    
-                                    # Combine with context
-                                    full_context = f"{context_before}\n{full_stmt}\n{context_after}".strip()
-                                    cleaned_stmt = ' '.join(full_context.split())
-                                    
-                                    # Store with context
-                                    texts.append(cleaned_stmt)
-                                    metadatas.append({
-                                        "source": file_path,
-                                        "content": cleaned_stmt,
-                                        "type": "sql_statement",
-                                        "operation": operation_type,
-                                        "size": len(cleaned_stmt),
-                                        "has_context": True
-                                    })
-                                    
-                                    # For SELECT statements, also store the column list separately
-                                    if operation_type == "SELECT":
-                                        columns_match = re.search(r'SELECT\s+(.*?)\s+FROM', cleaned_stmt, re.IGNORECASE | re.DOTALL)
-                                        if columns_match:
-                                            columns_text = columns_match.group(1)
-                                            texts.append(columns_text)
-                                            metadatas.append({
-                                                "source": file_path,
-                                                "content": columns_text,
-                                                "type": "column_list",
-                                                "parent_statement": cleaned_stmt
-                                            })
-                                    
-                                    logger.debug(f"Added {operation_type} statement from {file_path} with size {len(cleaned_stmt)}")
+                        self.vector_store = FAISS.load_local(str(self.index_path), self.embeddings)
+                        logger.info(f"Loaded existing index with {self.index_metadata['total_chunks']} chunks")
+                        return
                     except Exception as e:
-                        logger.error(f"Error processing statement in {file_path}: {str(e)}")
+                        logger.error(f"Error loading existing index: {e}")
+                else:
+                    logger.info("Files changed, rebuilding index...")
+
+            # If we reach here, we need to create new index
+            texts = []
+            metadatas = []
+            
+            for file_path in sql_files:
+                try:
+                    # Process file content as before
+                    content = None
+                    for encoding in ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']:
+                        try:
+                            with open(file_path, 'r', encoding=encoding) as f:
+                                content = f.read()
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if content is None:
+                        logger.warning(f"Could not read file {file_path} with any supported encoding")
                         continue
-                        
-            except Exception as e:
-                logger.error(f"Error processing file {file_path}: {str(e)}")
-        
-        if texts:
+
+                    # Process SQL content chunks as before
+                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
+                    
+                    for i in range(1, len(statements), 2):
+                        if i+1 < len(statements):
+                            operation_type = statements[i].strip().upper()
+                            full_stmt = operation_type + " " + statements[i+1]
+                            
+                            if len(full_stmt.split()) > 10:
+                                # Get context as before
+                                start_idx = max(0, i-2)
+                                context_before = ' '.join(statements[start_idx:i]).strip()
+                                
+                                end_idx = min(len(statements), i+3)
+                                context_after = ' '.join(statements[i+2:end_idx]).strip()
+                                
+                                full_context = f"{context_before}\n{full_stmt}\n{context_after}".strip()
+                                cleaned_stmt = ' '.join(full_context.split())
+                                
+                                texts.append(cleaned_stmt)
+                                metadatas.append({
+                                    "source": file_path,
+                                    "content": cleaned_stmt,
+                                    "type": "sql_statement",
+                                    "operation": operation_type
+                                })
+
+                except Exception as e:
+                    logger.error(f"Error processing file {file_path}: {e}")
+                    continue
+
+            if not texts:
+                raise ValueError("No valid SQL content found to index")
+
+            # Create new index
             self.vector_store = FAISS.from_texts(
                 texts=texts,
                 embedding=self.embeddings,
                 metadatas=metadatas
             )
-            logger.info(f"Initialized vector store with {len(texts)} chunks")
+            
+            # Update metadata
+            self.index_metadata.update({
+                "last_updated": datetime.now().isoformat(),
+                "files_hash": current_hash,
+                "indexed_files": sql_files,
+                "total_chunks": len(texts)
+            })
+            
+            # Save index and metadata
+            self.vector_store.save_local(str(self.index_path))
+            self._save_index_metadata()
+            
+            logger.info(f"Created new index with {len(texts)} chunks from {len(sql_files)} files")
+            
+        except Exception as e:
+            logger.error(f"Error initializing vector store: {e}", exc_info=True)
+            raise
     
     def extract_metadata(self, sql_content: str) -> Dict[str, Any]:
         """Extract metadata from MS SQL content including tables and their relationships.
@@ -879,3 +939,86 @@ Review Results:"""
             self.metadata["tables"] = list(set(self.metadata["tables"]))
             
         return self.metadata
+    def update_vector_store(self, new_sql_files: List[str]) -> None:
+        """Add new SQL files to existing index"""
+        try:
+            if not self.vector_store:
+                logger.info("No existing index, creating new one...")
+                self.initialize_vector_store(new_sql_files)
+                return
+
+            # Filter out already indexed files
+            new_files = [f for f in new_sql_files if f not in self.index_metadata["indexed_files"]]
+            if not new_files:
+                logger.info("No new files to index")
+                return
+
+            texts = []
+            metadatas = []
+            
+            # Process new files using the same logic as initialize_vector_store
+            for file_path in new_files:
+                try:
+                    content = None
+                    for encoding in ['utf-8', 'cp1251', 'latin1', 'iso-8859-1']:
+                        try:
+                            with open(file_path, 'r', encoding=encoding) as f:
+                                content = f.read()
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if content is None:
+                        logger.warning(f"Could not read file {file_path} with any supported encoding")
+                        continue
+
+                    statements = re.split(r'(?i)(CREATE|ALTER|DROP|SELECT|INSERT|UPDATE|DELETE|MERGE)\s+', content)
+                    
+                    for i in range(1, len(statements), 2):
+                        if i+1 < len(statements):
+                            operation_type = statements[i].strip().upper()
+                            full_stmt = operation_type + " " + statements[i+1]
+                            
+                            if len(full_stmt.split()) > 10:
+                                start_idx = max(0, i-2)
+                                context_before = ' '.join(statements[start_idx:i]).strip()
+                                
+                                end_idx = min(len(statements), i+3)
+                                context_after = ' '.join(statements[i+2:end_idx]).strip()
+                                
+                                full_context = f"{context_before}\n{full_stmt}\n{context_after}".strip()
+                                cleaned_stmt = ' '.join(full_context.split())
+                                
+                                texts.append(cleaned_stmt)
+                                metadatas.append({
+                                    "source": file_path,
+                                    "content": cleaned_stmt,
+                                    "type": "sql_statement",
+                                    "operation": operation_type
+                                })
+
+                except Exception as e:
+                    logger.error(f"Error processing file {file_path}: {e}")
+                    continue
+
+            if texts:
+                # Add new texts to existing index
+                self.vector_store.add_texts(texts, metadatas=metadatas)
+                
+                # Update metadata
+                self.index_metadata["indexed_files"].extend(new_files)
+                self.index_metadata["total_chunks"] += len(texts)
+                self.index_metadata["last_updated"] = datetime.now().isoformat()
+                self.index_metadata["files_hash"] = self._get_files_hash(
+                    self.index_metadata["indexed_files"]
+                )
+                
+                # Save updated index and metadata
+                self.vector_store.save_local(str(self.index_path))
+                self._save_index_metadata()
+                
+                logger.info(f"Added {len(texts)} new chunks from {len(new_files)} files to index")
+            
+        except Exception as e:
+            logger.error(f"Error updating vector store: {e}", exc_info=True)
+            raise
