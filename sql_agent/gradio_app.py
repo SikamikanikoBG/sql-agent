@@ -371,7 +371,8 @@ def create_gradio_interface():
         generate_btn.click(
             fn=app.process_query,
             inputs=[api_key, query, columns, model, temperature, similarity_threshold],
-            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output]
+            outputs=[sql_output, explanation_output, examples_output, usage_output, agent_interactions_output],
+            queue=True  # Enable queueing for loading indicators
         )
         
         # Initialize app
